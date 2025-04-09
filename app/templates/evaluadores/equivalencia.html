@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}Detalles de Solicitud - Sistema de Equivalencias CRUB{% endblock %}
+
+{% block header %}Detalles de Solicitud de Equivalencia{% endblock %}
+
+{% block content %}
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="fas fa-file-alt"></i> Solicitud #{{ solicitud.id_solicitud }}</h5>
+        <div>
+            <span class="badge {% if solicitud.estado == 'pendiente' %}bg-warning text-dark{% elif solicitud.estado == 'en_evaluacion' %}bg-info{% elif solicitud.estado == 'aprobada' %}bg-success{% elif solicitud.estado == 'rechazada' %}bg-danger{% endif %}">
+                {{ solicitud.estado|title }}
+            </span>
+            {% if solicitud.fecha_resolucion %}
+            <span class="badge bg-secondary ms-2">Resuelto el {{ solicitud.fecha_resolucion.strftime('%d/%m/%Y') }}</span>
+            {% endif %}
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <h6 class="mb-3">Datos del Solicitante</h6>
+                <table class="table table-borderless table-sm">
+                    <tr>
+                        <th style="width: 30%">Nombre Completo:</th>
+                        <td>{{ solicitud.nombre_solicitante }} {{ solicitud.apellido_solicitante }}</td>
+                    </tr>
+                    <tr>
+                        <th>DNI:</th>
+                        <td>{{ solicitud.dni_solicitante }}</td>
+                    </tr>
+                    <tr>
+                        <th>Legajo CRUB:</th>
+                        <td>{{ solicitud.legajo_crub }}</td>
+                    </tr>
+                    <tr>
+                        <th>Correo:</th>
+                        <td>{{ solicitud.correo_solicitante }}</td>
+                    </tr>
+                    <tr>
+                        <th>Fecha de Solicitud:</th>
+                        <td>{{ solicitud.fecha_solicitud.strftime('%d/%m/%Y') }}</td>
+                    </tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <h6 class="mb-3">Datos Académicos</h6>
+                <table class="table table-borderless table-sm">
+                    <tr>
+                        <th style="width: 30%">Institución de Origen:</th>
+                        <td>{{ solicitud.institucion_origen }}</td>
+                    </tr>
+                    <tr>
+                        <th>Carrera de Origen:</th>
+                        <td>{{ solicitud.carrera_origen }}</td>
+                    </tr>
+                    <tr>
+                        <th>Carrera CRUB Destino:</th>
+                        <td>{{ solicitud.carrera_crub_destino }}</td>
+                    </tr>
+                    <tr>
+                        <th>Asignaturas Solicitadas:</th>
+                        <td>
+                            {% for asignatura in solicitud.asignaturas_destino_solicitadas.split(',') %}
+                            <div>• {{ asignatura.strip() }}</div>
+                            {% endfor %}
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        {% if solicitud.observaciones_solicitante %}
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card bg-light">
+                    <div class="card-header">
+                        <h6 class="mb-0">Observaciones del Solicitante</h6>
+                    </div>
+                    <div class="card-body">
+                        {{ solicitud.observaciones_solicitante }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if solicitud.ruta_archivo %}
+        <div class="row">
+            <div class="col-12">
+                <div class="card border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0">Documentación</h6>
+                    </div>
+                    <div class="card-body">
+                        <p>A continuación puede acceder a la documentación proporcionada por el solicitante:</p>
+                        <a href="{{ url_for('static', filename=solicitud.ruta_archivo) }}" target="_blank" class="btn btn-primary">
+                            <i class="fas fa-file-pdf"></i> Ver Documentación Completa
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i> Esta solicitud no tiene documentación adjunta.
+        </div>
+        {% endif %}
+        
+        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+            <a href="{{ url_for('evaluadores.list_equivalencias') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
+            <a href="{{ url_for('evaluadores.dictamen_equivalencia', id=solicitud.id) }}" class="btn btn-primary">
+                <i class="fas fa-gavel"></i> Emitir Dictamen
+            </a>
+        </div>
+    </div>
+</div>
+
+{% if solicitud.dictamenes %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-clipboard-list"></i> Dictámenes Actuales</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Asignatura de Origen</th>
+                        <th>Asignatura de Destino</th>
+                        <th>Tipo de Equivalencia</th>
+                        <th>Observaciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for dictamen in solicitud.dictamenes %}
+                    <tr>
+                        <td>{{ dictamen.asignatura_origen }}</td>
+                        <td>{{ dictamen.asignatura_destino }}</td>
+                        <td>
+                            {% if dictamen.tipo_equivalencia == 'total' %}
+                                <span class="badge bg-success">Total</span>
+                            {% elif dictamen.tipo_equivalencia == 'parcial' %}
+                                <span class="badge bg-warning text-dark">Parcial</span>
+                            {% elif dictamen.tipo_equivalencia == 'sin_equivalencia' %}
+                                <span class="badge bg-danger">Sin Equivalencia</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Pendiente</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ dictamen.observaciones or "Sin observaciones" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

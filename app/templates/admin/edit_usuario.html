@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+
+{% block title %}Editar Usuario{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4>Editar Usuario</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('admin.edit_usuario', id=usuario.id) }}">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Nombre de Usuario</label>
+                            <input type="text" class="form-control" id="username" name="username" value="{{ usuario.username }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Correo Electrónico</label>
+                            <input type="email" class="form-control" id="email" name="email" value="{{ usuario.email }}" required>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="nombre" class="form-label">Nombre</label>
+                                <input type="text" class="form-control" id="nombre" name="nombre" value="{{ usuario.nombre }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="apellido" class="form-label">Apellido</label>
+                                <input type="text" class="form-control" id="apellido" name="apellido" value="{{ usuario.apellido }}" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="telefono" class="form-label">Teléfono</label>
+                            <input type="text" class="form-control" id="telefono" name="telefono" value="{{ usuario.telefono or '' }}">
+                        </div>
+                        <div class="mb-3">
+                            <label for="rol" class="form-label">Rol</label>
+                            <select class="form-select" id="rol" name="rol" required>
+                                <option value="admin" {% if usuario.rol == 'admin' %}selected{% endif %}>Administrador</option>
+                                <option value="depto_estudiantes" {% if usuario.rol == 'depto_estudiantes' %}selected{% endif %}>Departamento de Estudiantes</option>
+                                <option value="evaluador" {% if usuario.rol == 'evaluador' %}selected{% endif %}>Evaluador</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Campos específicos para evaluadores -->
+                        <div class="mb-3 evaluador-fields" {% if usuario.rol != 'evaluador' %}style="display: none;"{% endif %}>
+                            <label for="legajo_evaluador" class="form-label">Legajo del Evaluador</label>
+                            <input type="text" class="form-control" id="legajo_evaluador" name="legajo_evaluador" value="{{ usuario.legajo_evaluador or '' }}">
+                        </div>
+                        <div class="mb-3 evaluador-fields" {% if usuario.rol != 'evaluador' %}style="display: none;"{% endif %}>
+                            <label for="departamento_academico" class="form-label">Departamento Académico</label>
+                            <input type="text" class="form-control" id="departamento_academico" name="departamento_academico" value="{{ usuario.departamento_academico or '' }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Nueva Contraseña (dejar en blanco para mantener la actual)</label>
+                            <input type="password" class="form-control" id="password" name="password">
+                        </div>
+                        <div class="mb-3">
+                            <label for="password_confirm" class="form-label">Confirmar Nueva Contraseña</label>
+                            <input type="password" class="form-control" id="password_confirm" name="password_confirm">
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('admin.list_usuarios') }}" class="btn btn-secondary">Cancelar</a>
+                            <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const rolSelect = document.getElementById('rol');
+    const evaluadorFields = document.querySelectorAll('.evaluador-fields');
+    
+    rolSelect.addEventListener('change', function() {
+        if (this.value === 'evaluador') {
+            evaluadorFields.forEach(field => field.style.display = 'block');
+        } else {
+            evaluadorFields.forEach(field => field.style.display = 'none');
+        }
+    });
+});
+</script>
+{% endblock %}

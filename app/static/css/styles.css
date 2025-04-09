@@ -1,0 +1,75 @@
+/* Estilos personalizados para el Sistema de Equivalencias CRUB */
+
+/* Ajustes generales */
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.container {
+    flex: 1;
+}
+
+.footer {
+    margin-top: auto;
+}
+
+/* Barra de navegación */
+.navbar-brand img {
+    margin-right: 10px;
+}
+
+/* Tarjetas y elementos */
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    margin-bottom: 1.5rem;
+}
+
+.card-header {
+    background-color: #f8f9fa;
+}
+
+/* Tablas */
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Estados de solicitudes */
+.status-pending {
+    background-color: #ffeeba;
+}
+
+.status-evaluation {
+    background-color: #d1ecf1;
+}
+
+.status-approved {
+    background-color: #d4edda;
+}
+
+.status-rejected {
+    background-color: #f8d7da;
+}
+
+/* Estilos para dispositivos pequeños */
+@media (max-width: 767.98px) {
+    .table-responsive {
+        font-size: 0.9rem;
+    }
+    
+    .btn-group-sm .btn {
+        padding: 0.25rem 0.4rem;
+    }
+}
+
+/* Animaciones */
+.alert {
+    animation: fadeIn 0.5s;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}

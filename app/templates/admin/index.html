@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block title %}Panel de Administrador{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Panel de Administración</h1>
+    
+    <div class="row mt-4">
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Gestión de Usuarios</h5>
+                    <p class="card-text">Administra los usuarios del sistema.</p>
+                    <a href="{{ url_for('admin.list_usuarios') }}" class="btn btn-primary">Ver Usuarios</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Solicitudes de Equivalencia</h5>
+                    <p class="card-text">Ver todas las solicitudes en el sistema.</p>
+                    <a href="{{ url_for('depto.list_equivalencias') }}" class="btn btn-primary">Ver Solicitudes</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Crear Usuario</h5>
+                    <p class="card-text">Crear nuevos usuarios en el sistema.</p>
+                    <a href="{{ url_for('admin.list_usuarios') }}" class="btn btn-success">Nuevo Usuario</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,52 @@
+{
+    "solicitud_equivalencia": [
+        {
+            "id_solicitud": "001",
+            "estado": "pendiente",
+            "fecha_solicitud": "2023-10-01",
+            "fecha_resolucion": null,
+            "legajo_evaluador": "123456",
+            "carrera_crub_destino": "Ingeniería en Sistemas",
+            "datos_solicitante": {
+                "id_archivo_solicitud": "789",
+                "nombre": "Juan Pérez",
+                "apellido": "Gómez",
+                "dni": "12345678",
+                "legajo_crub": "987654",
+                "correo": "correo@corre.com",
+                "institucion_origen": "instituto del mar",
+                "carrera_origen": "Ingeniería en Sistemas",
+                "asignaturas_destino_solicitadas": "Matemáticas, Física",
+                "observaciones": "Ninguna"
+            },
+            "dictamen": [
+                {
+                    "asignatura_origen": "Matemáticas",
+                    "asignatura_destino": "Matemáticas",
+                    "tipo_equivalencia": "total",
+                    "observaciones": "Ninguna"
+                },
+                {
+                    "asignatura_origen": "Física",
+                    "asignatura_destino": "Física",
+                    "tipo_equivalencia": "total",
+                    "observaciones": "Ninguna"
+                },
+                {
+                    "asignatura_origen": "Química",
+                    "asignatura_destino": null,
+                    "tipo_equivalencia": null,
+                    "observaciones": "No se encuentra en el plan de estudios"
+                }
+            ]
+        }
+    ],
+    "usuarios_evaluadores": {
+        "legajo_evaluador": "123456",
+        "nombre": "María",
+        "apellido": "López",
+        "correo": "c@c.com",
+        "telefono": "123456789",
+        "departamento_academico": "Ingeniería"
+    }
+}

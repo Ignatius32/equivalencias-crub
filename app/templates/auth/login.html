@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Iniciar Sesión - Sistema de Equivalencias CRUB{% endblock %}
+
+{% block header %}Iniciar Sesión{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6 offset-md-3">
+        <div class="card shadow">
+            <div class="card-body">
+                <h4 class="card-title text-center mb-4">Sistema de Equivalencias CRUB</h4>
+                <form method="POST" action="{{ url_for('auth.login') }}">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Nombre de usuario</label>
+                        <input type="text" class="form-control" id="username" name="username" required autocomplete="username">
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Contraseña</label>
+                        <input type="password" class="form-control" id="password" name="password" required autocomplete="current-password">
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="remember" name="remember">
+                        <label class="form-check-label" for="remember">Recordarme</label>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">Iniciar Sesión</button>
+                    </div>
+                    <div class="mt-3 text-center">
+                        <small class="text-muted">Para acceso con el rol de administrador, utilice:<br>
+                        <strong>Usuario:</strong> admin<br>
+                        <strong>Contraseña:</strong> admin</small>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

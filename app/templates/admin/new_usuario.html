@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Nuevo Usuario - Sistema de Equivalencias CRUB{% endblock %}
+
+{% block header %}Nuevo Usuario{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-user-plus"></i> Registro de Nuevo Usuario</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('admin.new_usuario') }}">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="username" class="form-label">Nombre de Usuario</label>
+                            <input type="text" class="form-control" id="username" name="username" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="email" class="form-label">Correo Electrónico</label>
+                            <input type="email" class="form-control" id="email" name="email" required>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="nombre" class="form-label">Nombre</label>
+                            <input type="text" class="form-control" id="nombre" name="nombre" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="apellido" class="form-label">Apellido</label>
+                            <input type="text" class="form-control" id="apellido" name="apellido" required>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="telefono" class="form-label">Teléfono</label>
+                            <input type="text" class="form-control" id="telefono" name="telefono">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="rol" class="form-label">Rol</label>
+                            <select class="form-select" id="rol" name="rol" required onchange="toggleEvaluadorFields()">
+                                <option value="" selected disabled>Seleccionar rol</option>
+                                <option value="admin">Administrador</option>
+                                <option value="depto_estudiantes">Departamento de Estudiantes</option>
+                                <option value="evaluador">Evaluador</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div id="evaluador-fields" style="display: none;">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="legajo_evaluador" class="form-label">Legajo Evaluador</label>
+                                <input type="text" class="form-control" id="legajo_evaluador" name="legajo_evaluador">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="departamento_academico" class="form-label">Departamento Académico</label>
+                                <input type="text" class="form-control" id="departamento_academico" name="departamento_academico">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="password" class="form-label">Contraseña</label>
+                            <input type="password" class="form-control" id="password" name="password" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="confirm_password" class="form-label">Confirmar Contraseña</label>
+                            <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('admin.list_usuarios') }}" class="btn btn-secondary">Cancelar</a>
+                        <button type="submit" class="btn btn-primary">Guardar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function toggleEvaluadorFields() {
+        const rolSelect = document.getElementById('rol');
+        const evaluadorFields = document.getElementById('evaluador-fields');
+        
+        if (rolSelect.value === 'evaluador') {
+            evaluadorFields.style.display = 'block';
+            document.getElementById('legajo_evaluador').required = true;
+            document.getElementById('departamento_academico').required = true;
+        } else {
+            evaluadorFields.style.display = 'none';
+            document.getElementById('legajo_evaluador').required = false;
+            document.getElementById('departamento_academico').required = false;
+        }
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        // Verificar contraseñas
+        const form = document.querySelector('form');
+        form.addEventListener('submit', function(event) {
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirm_password').value;
+            
+            if (password !== confirmPassword) {
+                event.preventDefault();
+                alert('Las contraseñas no coinciden');
+            }
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block title %}Editar Solicitud de Equivalencia - Sistema de Equivalencias CRUB{% endblock %}
+
+{% block header %}Editar Solicitud de Equivalencia{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="fas fa-edit"></i> Editar Solicitud #{{ solicitud.id_solicitud }}</h5>
+        <span class="badge {% if solicitud.estado == 'pendiente' %}bg-warning text-dark{% elif solicitud.estado == 'en_evaluacion' %}bg-info{% elif solicitud.estado == 'aprobada' %}bg-success{% elif solicitud.estado == 'rechazada' %}bg-danger{% endif %}">
+            {{ solicitud.estado|title }}
+        </span>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('depto.edit_equivalencia', id=solicitud.id) }}" enctype="multipart/form-data">
+            <div class="row">
+                <!-- Columna Izquierda -->
+                <div class="col-md-6">
+                    <h5 class="mb-3">Datos del Solicitante</h5>
+                    
+                    <div class="mb-3">
+                        <label for="nombre" class="form-label">Nombre</label>
+                        <input type="text" class="form-control" id="nombre" name="nombre" value="{{ solicitud.nombre_solicitante }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="apellido" class="form-label">Apellido</label>
+                        <input type="text" class="form-control" id="apellido" name="apellido" value="{{ solicitud.apellido_solicitante }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="dni" class="form-label">DNI</label>
+                        <input type="text" class="form-control" id="dni" name="dni" value="{{ solicitud.dni_solicitante }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="legajo_crub" class="form-label">Legajo CRUB</label>
+                        <input type="text" class="form-control" id="legajo_crub" name="legajo_crub" value="{{ solicitud.legajo_crub }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="correo" class="form-label">Correo Electrónico</label>
+                        <input type="email" class="form-control" id="correo" name="correo" value="{{ solicitud.correo_solicitante }}" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="estado" class="form-label">Estado de la Solicitud</label>
+                        <select class="form-select" id="estado" name="estado" required>
+                            <option value="pendiente" {% if solicitud.estado == 'pendiente' %}selected{% endif %}>Pendiente</option>
+                            <option value="en_evaluacion" {% if solicitud.estado == 'en_evaluacion' %}selected{% endif %}>En Evaluación</option>
+                            <option value="aprobada" {% if solicitud.estado == 'aprobada' %}selected{% endif %}>Aprobada</option>
+                            <option value="rechazada" {% if solicitud.estado == 'rechazada' %}selected{% endif %}>Rechazada</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Columna Derecha -->
+                <div class="col-md-6">
+                    <h5 class="mb-3">Datos Académicos</h5>
+                    
+                    <div class="mb-3">
+                        <label for="institucion_origen" class="form-label">Institución de Origen</label>
+                        <input type="text" class="form-control" id="institucion_origen" name="institucion_origen" value="{{ solicitud.institucion_origen }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="carrera_origen" class="form-label">Carrera de Origen</label>
+                        <input type="text" class="form-control" id="carrera_origen" name="carrera_origen" value="{{ solicitud.carrera_origen }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="carrera_crub_destino" class="form-label">Carrera CRUB Destino</label>
+                        <input type="text" class="form-control" id="carrera_crub_destino" name="carrera_crub_destino" value="{{ solicitud.carrera_crub_destino }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="asignaturas_solicitadas" class="form-label">Asignaturas Solicitadas</label>
+                        <textarea class="form-control" id="asignaturas_solicitadas" name="asignaturas_solicitadas" rows="3" required>{{ solicitud.asignaturas_destino_solicitadas }}</textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="evaluador_id" class="form-label">Evaluador Asignado</label>
+                        <select class="form-select" id="evaluador_id" name="evaluador_id">
+                            <option value="">-- Sin evaluador asignado --</option>
+                            {% for evaluador in evaluadores %}
+                            <option value="{{ evaluador.id }}" {% if solicitud.evaluador_id == evaluador.id %}selected{% endif %}>
+                                {{ evaluador.nombre }} {{ evaluador.apellido }} - {{ evaluador.departamento_academico }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="col-12 mt-3">
+                    {% if solicitud.ruta_archivo %}
+                    <div class="mb-3">
+                        <label class="form-label">Documentación Actual</label>
+                        <div class="d-flex align-items-center">
+                            <a href="{{ url_for('static', filename=solicitud.ruta_archivo) }}" target="_blank" class="btn btn-sm btn-outline-primary me-2">
+                                <i class="fas fa-file-pdf"></i> Ver documento
+                            </a>
+                            <span class="text-muted small">Subido el {{ solicitud.fecha_solicitud.strftime('%d/%m/%Y') }}</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="mb-3">
+                        <label for="archivo_solicitud" class="form-label">Reemplazar Archivo (opcional)</label>
+                        <input class="form-control" type="file" id="archivo_solicitud" name="archivo_solicitud">
+                        <small class="form-text text-muted">Deje en blanco para mantener el archivo actual.</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="observaciones" class="form-label">Observaciones</label>
+                        <textarea class="form-control" id="observaciones" name="observaciones" rows="3">{{ solicitud.observaciones_solicitante }}</textarea>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                <a href="{{ url_for('depto.list_equivalencias') }}" class="btn btn-secondary">Cancelar</a>
+                <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if solicitud.dictamenes %}
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-clipboard-list"></i> Dictámenes</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Asignatura de Origen</th>
+                        <th>Asignatura de Destino</th>
+                        <th>Tipo de Equivalencia</th>
+                        <th>Observaciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for dictamen in solicitud.dictamenes %}
+                    <tr>
+                        <td>{{ dictamen.asignatura_origen }}</td>
+                        <td>{{ dictamen.asignatura_destino }}</td>
+                        <td>
+                            {% if dictamen.tipo_equivalencia == 'total' %}
+                                <span class="badge bg-success">Total</span>
+                            {% elif dictamen.tipo_equivalencia == 'parcial' %}
+                                <span class="badge bg-warning text-dark">Parcial</span>
+                            {% elif dictamen.tipo_equivalencia == 'sin_equivalencia' %}
+                                <span class="badge bg-danger">Sin Equivalencia</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Pendiente</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ dictamen.observaciones or "Sin observaciones" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

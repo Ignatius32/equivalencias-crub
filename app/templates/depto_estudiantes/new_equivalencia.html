@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Nueva Solicitud de Equivalencia - Sistema de Equivalencias CRUB{% endblock %}
+
+{% block header %}Nueva Solicitud de Equivalencia{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-file-medical"></i> Formulario de Nueva Solicitud</h5>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('depto.new_equivalencia') }}" enctype="multipart/form-data">
+            <div class="row">
+                <!-- Columna Izquierda -->
+                <div class="col-md-6">
+                    <h5 class="mb-3">Datos del Solicitante</h5>
+                    
+                    <div class="mb-3">
+                        <label for="nombre" class="form-label">Nombre</label>
+                        <input type="text" class="form-control" id="nombre" name="nombre" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="apellido" class="form-label">Apellido</label>
+                        <input type="text" class="form-control" id="apellido" name="apellido" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="dni" class="form-label">DNI</label>
+                        <input type="text" class="form-control" id="dni" name="dni" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="legajo_crub" class="form-label">Legajo CRUB</label>
+                        <input type="text" class="form-control" id="legajo_crub" name="legajo_crub" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="correo" class="form-label">Correo Electrónico</label>
+                        <input type="email" class="form-control" id="correo" name="correo" required>
+                    </div>
+                </div>
+                
+                <!-- Columna Derecha -->
+                <div class="col-md-6">
+                    <h5 class="mb-3">Datos Académicos</h5>
+                    
+                    <div class="mb-3">
+                        <label for="institucion_origen" class="form-label">Institución de Origen</label>
+                        <input type="text" class="form-control" id="institucion_origen" name="institucion_origen" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="carrera_origen" class="form-label">Carrera de Origen</label>
+                        <input type="text" class="form-control" id="carrera_origen" name="carrera_origen" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="carrera_crub_destino" class="form-label">Carrera CRUB Destino</label>
+                        <input type="text" class="form-control" id="carrera_crub_destino" name="carrera_crub_destino" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="asignaturas_solicitadas" class="form-label">Asignaturas Solicitadas (separadas por comas)</label>
+                        <textarea class="form-control" id="asignaturas_solicitadas" name="asignaturas_solicitadas" rows="3" required></textarea>
+                        <small class="form-text text-muted">Ejemplo: Matemática I, Física General, Química Inorgánica</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="evaluador_id" class="form-label">Asignar Evaluador (opcional)</label>
+                        <select class="form-select" id="evaluador_id" name="evaluador_id">
+                            <option value="">-- Sin evaluador asignado --</option>
+                            {% for evaluador in evaluadores %}
+                            <option value="{{ evaluador.id }}">
+                                {{ evaluador.nombre }} {{ evaluador.apellido }} - {{ evaluador.departamento_academico }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="col-12 mt-3">
+                    <div class="mb-3">
+                        <label for="archivo_solicitud" class="form-label">Archivo de Documentación</label>
+                        <input class="form-control" type="file" id="archivo_solicitud" name="archivo_solicitud">
+                        <small class="form-text text-muted">Formato PDF recomendado. Tamaño máximo: 10MB</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="observaciones" class="form-label">Observaciones</label>
+                        <textarea class="form-control" id="observaciones" name="observaciones" rows="3"></textarea>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                <a href="{{ url_for('depto.list_equivalencias') }}" class="btn btn-secondary">Cancelar</a>
+                <button type="submit" class="btn btn-primary">Guardar Solicitud</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
