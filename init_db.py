@@ -1,3 +1,4 @@
+from datetime import datetime
 from app import create_app, db
 from app.models import Usuario, SolicitudEquivalencia, Dictamen
 
@@ -46,8 +47,59 @@ with app.app_context():
     # Crear carpeta para archivos subidos
     import os
     os.makedirs(os.path.join(app.root_path, 'static/uploads'), exist_ok=True)
-    
-    # Guardar usuarios en la base de datos
+      # Crear una solicitud de equivalencia de ejemplo
+    print("Creando solicitud de equivalencia de ejemplo...")
+    solicitud = SolicitudEquivalencia(
+        id_solicitud="EQ-20250416-001",
+        estado="pendiente",
+        fecha_solicitud=datetime.now(),
+        nombre_solicitante="Juan",
+        apellido_solicitante="Pérez",
+        dni_solicitante="30123456",
+        legajo_crub="12345",
+        correo_solicitante="juan.perez@example.com",
+        institucion_origen="Universidad Nacional de Buenos Aires",
+        carrera_origen="Licenciatura en Matemáticas",
+        carrera_crub_destino="Licenciatura en Matemáticas",
+        observaciones_solicitante="Solicito equivalencias para materias cursadas en UBA"
+    )
+    db.session.add(solicitud)
+    db.session.flush()  # Para obtener el ID de la solicitud
+
+    # Crear dictámenes de ejemplo
+    print("Creando dictámenes de ejemplo...")
+    dictamenes_data = [
+        {
+            "asignatura_origen": "Análisis Matemático I",
+            "asignatura_destino": "Análisis Matemático I",
+            "tipo_equivalencia": None,
+            "observaciones": None
+        },
+        {
+            "asignatura_origen": "Álgebra I y II",
+            "asignatura_destino": "Álgebra",
+            "tipo_equivalencia": None,
+            "observaciones": None
+        },
+        {
+            "asignatura_origen": "Física General",
+            "asignatura_destino": "Física I",
+            "tipo_equivalencia": None,
+            "observaciones": None
+        }
+    ]
+
+    for data in dictamenes_data:
+        dictamen = Dictamen(
+            asignatura_origen=data["asignatura_origen"],
+            asignatura_destino=data["asignatura_destino"],
+            tipo_equivalencia=data["tipo_equivalencia"],
+            observaciones=data["observaciones"],
+            solicitud_id=solicitud.id
+        )
+        db.session.add(dictamen)
+
+    # Guardar todos los cambios en la base de datos
     db.session.commit()
     
     print("Base de datos inicializada con éxito.")

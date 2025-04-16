@@ -57,12 +57,11 @@
                     <tr>
                         <th>Carrera CRUB Destino:</th>
                         <td>{{ solicitud.carrera_crub_destino }}</td>
-                    </tr>
-                    <tr>
+                    </tr>                    <tr>
                         <th>Asignaturas Solicitadas:</th>
                         <td>
-                            {% for asignatura in solicitud.asignaturas_destino_solicitadas.split(',') %}
-                            <div>• {{ asignatura.strip() }}</div>
+                            {% for dictamen in solicitud.dictamenes %}
+                            <div>• {{ dictamen.asignatura_origen }} → {{ dictamen.asignatura_destino }}</div>
                             {% endfor %}
                         </td>
                     </tr>

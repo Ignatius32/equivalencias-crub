@@ -72,11 +72,67 @@
                         <label for="carrera_crub_destino" class="form-label">Carrera CRUB Destino</label>
                         <input type="text" class="form-control" id="carrera_crub_destino" name="carrera_crub_destino" value="{{ solicitud.carrera_crub_destino }}" required>
                     </div>
-                    
-                    <div class="mb-3">
-                        <label for="asignaturas_solicitadas" class="form-label">Asignaturas Solicitadas</label>
-                        <textarea class="form-control" id="asignaturas_solicitadas" name="asignaturas_solicitadas" rows="3" required>{{ solicitud.asignaturas_destino_solicitadas }}</textarea>
+                      <div class="col-12 mt-3">
+                    <h5 class="mb-3">Asignaturas Solicitadas</h5>
+                    <div id="asignaturas-container">
+                        {% for dictamen in solicitud.dictamenes %}
+                        <div class="asignatura-par mb-2">
+                            <div class="row">
+                                <div class="col-md-5">
+                                    <input type="text" class="form-control" name="asignatura_origen[]" placeholder="Asignatura/s de origen" value="{{ dictamen.asignatura_origen }}">
+                                </div>
+                                <div class="col-md-5">
+                                    <input type="text" class="form-control" name="asignatura_destino[]" placeholder="Asignatura de destino" value="{{ dictamen.asignatura_destino }}">
+                                </div>
+                                <div class="col-md-2">
+                                    <button type="button" class="btn btn-danger btn-sm remove-asignatura">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
                     </div>
+                    <button type="button" class="btn btn-secondary mt-2" id="agregar-asignatura">
+                        <i class="fas fa-plus"></i> Agregar Asignatura
+                    </button>
+                    <small class="form-text text-muted">Puede dejar esta sección vacía y agregar las asignaturas más tarde.</small>
+                </div>
+
+                <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const container = document.getElementById('asignaturas-container');
+                        const btnAgregar = document.getElementById('agregar-asignatura');
+
+                        btnAgregar.addEventListener('click', function() {
+                            const nuevoPar = document.createElement('div');
+                            nuevoPar.className = 'asignatura-par mb-2';
+                            nuevoPar.innerHTML = `
+                                <div class="row">
+                                    <div class="col-md-5">
+                                        <input type="text" class="form-control" name="asignatura_origen[]" placeholder="Asignatura/s de origen">
+                                    </div>
+                                    <div class="col-md-5">
+                                        <input type="text" class="form-control" name="asignatura_destino[]" placeholder="Asignatura de destino">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <button type="button" class="btn btn-danger btn-sm remove-asignatura">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            `;
+                            container.appendChild(nuevoPar);
+                        });
+
+                        container.addEventListener('click', function(e) {
+                            if (e.target.closest('.remove-asignatura')) {
+                                const par = e.target.closest('.asignatura-par');
+                                par.remove();
+                            }
+                        });
+                    });
+                </script>
                     
                     <div class="mb-3">
                         <label for="evaluador_id" class="form-label">Evaluador Asignado</label>

@@ -5,7 +5,7 @@
 
 {% block content %}
 <div class="row">
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="card text-white bg-primary mb-3">
             <div class="card-body">
                 <h5 class="card-title"><i class="fas fa-file-alt"></i> Solicitudes Totales</h5>
@@ -14,7 +14,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="card text-white bg-warning mb-3">
             <div class="card-body">
                 <h5 class="card-title"><i class="fas fa-clock"></i> Solicitudes Pendientes</h5>
@@ -23,11 +23,20 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="card text-white bg-success mb-3">
             <div class="card-body">
                 <h5 class="card-title"><i class="fas fa-check-circle"></i> Solicitudes Aprobadas</h5>
                 <p class="card-text display-4">{{ solicitudes_aprobadas }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-info mb-3">
+            <div class="card-body">
+                <h5 class="card-title"><i class="fas fa-clipboard-check"></i> Dictámenes</h5>
+                <p class="card-text display-4">{{ solicitudes_pendientes }}</p>
+                <a href="{{ url_for('evaluadores.list_equivalencias') }}" class="btn btn-light btn-sm">Ver dictámenes</a>
             </div>
         </div>
     </div>

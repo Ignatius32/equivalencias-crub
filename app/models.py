@@ -51,13 +51,12 @@ class SolicitudEquivalencia(db.Model):
     # Datos del solicitante
     nombre_solicitante = db.Column(db.String(64), nullable=False)
     apellido_solicitante = db.Column(db.String(64), nullable=False)
-    dni_solicitante = db.Column(db.String(20), nullable=False)
+    dni_solicitante = db.Column(db.String(20), nullable=False)    
     legajo_crub = db.Column(db.String(20), nullable=False)
     correo_solicitante = db.Column(db.String(120), nullable=False)
     institucion_origen = db.Column(db.String(200), nullable=False)
     carrera_origen = db.Column(db.String(200), nullable=False)
     carrera_crub_destino = db.Column(db.String(200), nullable=False)
-    asignaturas_destino_solicitadas = db.Column(db.Text, nullable=False)
     observaciones_solicitante = db.Column(db.Text)
     
     # Relaciones

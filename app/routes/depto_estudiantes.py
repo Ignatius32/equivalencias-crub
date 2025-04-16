@@ -54,12 +54,10 @@ def new_equivalencia():
             nombre_solicitante=request.form.get('nombre'),
             apellido_solicitante=request.form.get('apellido'),
             dni_solicitante=request.form.get('dni'),
-            legajo_crub=request.form.get('legajo_crub'),
-            correo_solicitante=request.form.get('correo'),
+            legajo_crub=request.form.get('legajo_crub'),            correo_solicitante=request.form.get('correo'),
             institucion_origen=request.form.get('institucion_origen'),
             carrera_origen=request.form.get('carrera_origen'),
             carrera_crub_destino=request.form.get('carrera_crub_destino'),
-            asignaturas_destino_solicitadas=request.form.get('asignaturas_solicitadas'),
             observaciones_solicitante=request.form.get('observaciones')
         )
         
@@ -85,19 +83,22 @@ def new_equivalencia():
         
         # Guardar la solicitud en la base de datos
         db.session.add(solicitud)
-        db.session.commit()
+        db.session.commit()        # Crear dictámenes iniciales para cada par de asignaturas si existen
+        asignaturas_origen = request.form.getlist('asignatura_origen[]')
+        asignaturas_destino = request.form.getlist('asignatura_destino[]')
         
-        # Crear dictámenes iniciales para cada asignatura solicitada
-        asignaturas = [a.strip() for a in solicitud.asignaturas_destino_solicitadas.split(',')]
-        for asignatura in asignaturas:
-            dictamen = Dictamen(
-                asignatura_origen=f"Por determinar - {asignatura}",
-                asignatura_destino=asignatura,
-                tipo_equivalencia=None,
-                observaciones=None,
-                solicitud_id=solicitud.id
-            )
-            db.session.add(dictamen)
+        # Solo crear dictámenes si se proporcionaron asignaturas
+        if asignaturas_origen and asignaturas_destino:
+            for origen, destino in zip(asignaturas_origen, asignaturas_destino):
+                if origen.strip() and destino.strip():  # Solo crear si ambos campos tienen contenido
+                    dictamen = Dictamen(
+                        asignatura_origen=origen,
+                        asignatura_destino=destino,
+                        tipo_equivalencia=None,
+                        observaciones=None,
+                        solicitud_id=solicitud.id
+                    )
+                    db.session.add(dictamen)
         
         db.session.commit()
         flash('Solicitud de equivalencia creada correctamente', 'success')
@@ -118,12 +119,32 @@ def edit_equivalencia(id):
         solicitud.dni_solicitante = request.form.get('dni')
         solicitud.legajo_crub = request.form.get('legajo_crub')
         solicitud.correo_solicitante = request.form.get('correo')
-        solicitud.institucion_origen = request.form.get('institucion_origen')
+        solicitud.institucion_origen = request.form.get('institucion_origen')    
         solicitud.carrera_origen = request.form.get('carrera_origen')
         solicitud.carrera_crub_destino = request.form.get('carrera_crub_destino')
-        solicitud.asignaturas_destino_solicitadas = request.form.get('asignaturas_solicitadas')
         solicitud.observaciones_solicitante = request.form.get('observaciones')
         solicitud.estado = request.form.get('estado')
+
+        # Manejar las asignaturas (dictámenes)
+        # Primero, eliminar todos los dictámenes existentes
+        for dictamen in solicitud.dictamenes:
+            db.session.delete(dictamen)
+          # Luego, crear los nuevos dictámenes si existen
+        asignaturas_origen = request.form.getlist('asignatura_origen[]')
+        asignaturas_destino = request.form.getlist('asignatura_destino[]')
+        
+        # Solo crear dictámenes si se proporcionaron asignaturas
+        if asignaturas_origen and asignaturas_destino:
+            for origen, destino in zip(asignaturas_origen, asignaturas_destino):
+                if origen.strip() and destino.strip():  # Solo crear si ambos campos tienen contenido
+                    dictamen = Dictamen(
+                        asignatura_origen=origen,
+                        asignatura_destino=destino,
+                        tipo_equivalencia=None,
+                        observaciones=None,
+                        solicitud_id=solicitud.id
+                    )
+                    db.session.add(dictamen)
         
         # Actualizar evaluador
         evaluador_id = request.form.get('evaluador_id')
