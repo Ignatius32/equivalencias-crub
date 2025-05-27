@@ -15,10 +15,10 @@
                     <tr>
                         <th>ID</th>
                         <th>Solicitante</th>
-                        <th>Carrera Origen</th>
-                        <th>Carrera Destino</th>
+                        <th>Carrera Origen</th>                        <th>Carrera Destino</th>
                         <th>Fecha de Solicitud</th>
                         <th>Estado</th>
+                        <th>Dictamen</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
@@ -36,9 +36,17 @@
                             {% elif solicitud.estado == 'en_evaluacion' %}
                                 <span class="badge bg-info">En Evaluación</span>
                             {% elif solicitud.estado == 'aprobada' %}
-                                <span class="badge bg-success">Aprobada</span>
-                            {% elif solicitud.estado == 'rechazada' %}
+                                <span class="badge bg-success">Aprobada</span>                            {% elif solicitud.estado == 'rechazada' %}
                                 <span class="badge bg-danger">Rechazada</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if solicitud.dictamen_final_url %}
+                                <a href="{{ solicitud.dictamen_final_url }}" target="_blank" class="btn btn-sm btn-outline-primary" title="Ver Dictamen Final">
+                                    <i class="fas fa-file-alt"></i> Dictamen
+                                </a>
+                            {% else %}
+                                <span class="text-muted">-</span>
                             {% endif %}
                         </td>
                         <td>

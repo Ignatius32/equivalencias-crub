@@ -16,10 +16,10 @@
                         <th>ID</th>
                         <th>Solicitante</th>
                         <th>Legajo</th>
-                        <th>Fecha de Solicitud</th>
-                        <th>Carrera Destino</th>
+                        <th>Fecha de Solicitud</th>                        <th>Carrera Destino</th>
                         <th>Estado</th>
                         <th>Evaluador</th>
+                        <th>Dictamen</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
@@ -41,12 +41,20 @@
                             {% elif solicitud.estado == "rechazada" %}
                                 <span class="badge bg-danger">Rechazada</span>
                             {% endif %}
-                        </td>
-                        <td>
+                        </td>                        <td>
                             {% if solicitud.evaluador %}
                                 {{ solicitud.evaluador.nombre }} {{ solicitud.evaluador.apellido }}
                             {% else %}
                                 <span class="text-muted">No asignado</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if solicitud.dictamen_final_url %}
+                                <a href="{{ solicitud.dictamen_final_url }}" target="_blank" class="btn btn-sm btn-outline-primary" title="Ver Dictamen Final">
+                                    <i class="fas fa-file-alt"></i> Dictamen
+                                </a>
+                            {% else %}
+                                <span class="text-muted">-</span>
                             {% endif %}
                         </td>
                         <td>

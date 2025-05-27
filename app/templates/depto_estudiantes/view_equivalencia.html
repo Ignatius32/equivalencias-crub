@@ -49,35 +49,38 @@
                 <h6>Información de la Solicitud</h6>
                 <dl class="row">
                     <dt class="col-sm-3">Fecha de Solicitud:</dt>
-                    <dd class="col-sm-9">{{ solicitud.fecha_solicitud.strftime('%d/%m/%Y') }}</dd>
+                    <dd class="col-sm-9">{{ solicitud.fecha_solicitud.strftime('%d/%m/%Y %H:%M') }}</dd>
                     
-                    {% if solicitud.fecha_resolucion %}
-                    <dt class="col-sm-3">Fecha de Resolución:</dt>
-                    <dd class="col-sm-9">{{ solicitud.fecha_resolucion.strftime('%d/%m/%Y') }}</dd>
-                    {% endif %}
-                    
-                    <dt class="col-sm-3">Evaluador:</dt>
+                    <dt class="col-sm-3">Evaluador Asignado:</dt>
                     <dd class="col-sm-9">
                         {% if solicitud.evaluador %}
-                            {{ solicitud.evaluador.nombre }} {{ solicitud.evaluador.apellido }}
-                            ({{ solicitud.evaluador.departamento_academico }})
+                            {{ solicitud.evaluador.nombre }} {{ solicitud.evaluador.apellido }} 
+                            <small class="text-muted">({{ solicitud.evaluador.departamento_academico }})</small>
                         {% else %}
-                            <span class="text-muted">No asignado</span>
+                            <span class="text-muted">Sin evaluador asignado</span>
+                            <button type="button" class="btn btn-sm btn-outline-primary ms-2" data-bs-toggle="modal" data-bs-target="#asignarEvaluador">
+                                <i class="fas fa-plus"></i> Asignar
+                            </button>
                         {% endif %}
                     </dd>
-
-                    {% if solicitud.observaciones_solicitante %}
-                    <dt class="col-sm-3">Observaciones:</dt>
-                    <dd class="col-sm-9">{{ solicitud.observaciones_solicitante }}</dd>
-                    {% endif %}
-
+                    
                     {% if solicitud.ruta_archivo %}
                     <dt class="col-sm-3">Documentación:</dt>
                     <dd class="col-sm-9">
-                        <a href="{{ url_for('static', filename=solicitud.ruta_archivo) }}" target="_blank" class="btn btn-sm btn-outline-primary">
-                            <i class="fas fa-download"></i> Ver Documentación Adjunta
+                        <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#documentModal">
+                            <i class="fas fa-file-pdf"></i> Ver Documento
+                        </button>
+                        {% if solicitud.google_drive_folder_url %}
+                        <a href="{{ solicitud.google_drive_folder_url }}" target="_blank" class="btn btn-outline-success btn-sm ms-2">
+                            <i class="fab fa-google-drive"></i> Carpeta Google Drive
                         </a>
+                        {% endif %}
                     </dd>
+                    {% endif %}
+                    
+                    {% if solicitud.observaciones_solicitante %}
+                    <dt class="col-sm-3">Observaciones:</dt>
+                    <dd class="col-sm-9">{{ solicitud.observaciones_solicitante }}</dd>
                     {% endif %}
                 </dl>
             </div>
@@ -124,8 +127,9 @@
                 </div>
                 {% endfor %}
             </div>
-        </div>
-        {% endif %}        <div class="mt-4">
+        </div>        {% endif %}
+
+        <div class="mt-4">
             <a href="{{ url_for('depto.list_equivalencias') }}" class="btn btn-secondary">
                 <i class="fas fa-arrow-left"></i> Volver
             </a>
@@ -165,4 +169,77 @@
     </div>
 </div>
 {% endif %}
+
+<!-- Modal para ver documento -->
+{% if solicitud.ruta_archivo %}
+<div class="modal fade" id="documentModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Documentación de la Solicitud</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="documentViewer" class="text-center">
+                    <div class="mb-3">
+                        <a href="{{ url_for('static', filename=solicitud.ruta_archivo) }}" target="_blank" class="btn btn-outline-primary">
+                            <i class="fas fa-external-link-alt"></i> Abrir en Nueva Pestaña
+                        </a>
+                        <a href="{{ url_for('static', filename=solicitud.ruta_archivo) }}" download class="btn btn-outline-success">
+                            <i class="fas fa-download"></i> Descargar
+                        </a>
+                    </div>
+                    <embed src="{{ url_for('static', filename=solicitud.ruta_archivo) }}" type="application/pdf" width="100%" height="700px" />
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                {% if solicitud.google_drive_folder_url %}
+                <a href="{{ solicitud.google_drive_folder_url }}" target="_blank" class="btn btn-primary">
+                    <i class="fab fa-google-drive"></i> Ver en Google Drive
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+// Función para manejar errores al cargar el PDF embebido
+document.addEventListener('DOMContentLoaded', function() {
+    const documentModal = document.getElementById('documentModal');
+    if (documentModal) {
+        documentModal.addEventListener('shown.bs.modal', function () {
+            const embed = documentModal.querySelector('embed');
+            if (embed) {
+                // Agregar timeout para detectar si el PDF no se carga
+                setTimeout(function() {
+                    if (embed.offsetHeight === 0 || embed.offsetWidth === 0) {
+                        // Si el embed no se carga, mostrar mensaje alternativo
+                        const viewer = document.getElementById('documentViewer');
+                        if (viewer) {
+                            viewer.innerHTML = `
+                                <div class="alert alert-warning" role="alert">
+                                    <h5><i class="fas fa-exclamation-triangle"></i> Visualización no disponible</h5>
+                                    <p>El documento no se puede mostrar directamente en el navegador. Utiliza los botones de arriba para abrir en una nueva pestaña o descargar.</p>
+                                </div>
+                                <div class="text-center">
+                                    <a href="${embed.src}" target="_blank" class="btn btn-primary me-2">
+                                        <i class="fas fa-external-link-alt"></i> Abrir en Nueva Pestaña
+                                    </a>
+                                    <a href="${embed.src}" download class="btn btn-success">
+                                        <i class="fas fa-download"></i> Descargar
+                                    </a>
+                                </div>
+                            `;
+                        }
+                    }
+                }, 2000);
+            }
+        });
+    }
+});
+</script>
+
 {% endblock %}

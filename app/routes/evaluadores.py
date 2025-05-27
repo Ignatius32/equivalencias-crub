@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 from app.models import SolicitudEquivalencia, Dictamen
 from app import db
+from app.services.dictamen_service import DictamenService
 from functools import wraps
 from datetime import datetime
 
@@ -52,7 +53,12 @@ def dictamen_equivalencia(id):
     
     if current_user.rol != 'admin' and solicitud.evaluador_id != current_user.id:
         flash('No tienes permiso para acceder a esta solicitud', 'danger')
-        return redirect(url_for('evaluadores.list_equivalencias'))    # Obtener lista de evaluadores si el usuario es admin
+        return redirect(url_for('evaluadores.list_equivalencias'))
+    
+    # Verificar si el evaluador puede editar la solicitud
+    if current_user.rol != 'admin' and solicitud.estado != 'en_evaluacion':
+        flash(f'No puede modificar esta solicitud. Estado actual: {solicitud.estado}. Solo se pueden editar solicitudes en estado "En Evaluación".', 'warning')
+        return redirect(url_for('evaluadores.view_equivalencia', id=solicitud.id))# Obtener lista de evaluadores si el usuario es admin
     evaluadores = None
     if current_user.rol == 'admin':
         from app.models import Usuario
@@ -82,10 +88,16 @@ def dictamen_equivalencia(id):
             if current_user.rol == 'admin':
                 nuevo_evaluador_id = request.form.get(f'{prefix}_evaluador_id')
                 if nuevo_evaluador_id:
-                    dictamen.evaluador_id = int(nuevo_evaluador_id)
-          # Actualizar estado de la solicitud
+                    dictamen.evaluador_id = int(nuevo_evaluador_id)        # Actualizar estado de la solicitud
+        estado_anterior = solicitud.estado
         estado_nuevo = request.form.get('estado_solicitud')
-        if estado_nuevo:
+        if estado_nuevo and estado_nuevo != estado_anterior:
+            # Alertar si se está cerrando la solicitud (cambiando de "en_evaluacion" a otro estado)
+            if (estado_anterior == 'en_evaluacion' and 
+                estado_nuevo != 'en_evaluacion' and 
+                current_user.rol != 'admin'):
+                flash(f'Usted está cerrando la solicitud de equivalencia de {solicitud.nombre_solicitante} {solicitud.apellido_solicitante} con estado "{estado_nuevo}". Ya no podrá modificar los dictámenes.', 'warning')
+            
             # Verificar si hay dictámenes pendientes
             dictamenes_pendientes = any(not dictamen.tipo_equivalencia for dictamen in solicitud.dictamenes)
             
@@ -96,6 +108,16 @@ def dictamen_equivalencia(id):
             solicitud.estado = estado_nuevo
             if estado_nuevo in ['aprobada', 'rechazada']:
                 solicitud.fecha_resolucion = datetime.now()
+            
+            # Manejar cambios de estado y dictamen final
+            dictamen_service = DictamenService()
+            dictamen_result = dictamen_service.manejar_cambio_estado(solicitud, estado_anterior, estado_nuevo)
+            
+            if not dictamen_result['success']:
+                flash(f'Error al procesar dictamen: {dictamen_result["error"]}', 'warning')
+            else:
+                if dictamen_result['message'] != 'No se requiere acción para el dictamen final':
+                    flash(dictamen_result['message'], 'info')
         
         db.session.commit()
         flash('Dictamen actualizado correctamente', 'success')
@@ -114,6 +136,11 @@ def agregar_dictamen(solicitud_id):
     if current_user.rol != 'admin' and solicitud.evaluador_id != current_user.id:
         flash('No tienes permiso para acceder a esta solicitud', 'danger')
         return redirect(url_for('evaluadores.list_equivalencias'))
+    
+    # Verificar si el evaluador puede editar la solicitud
+    if current_user.rol != 'admin' and solicitud.estado != 'en_evaluacion':
+        flash(f'No puede modificar esta solicitud. Estado actual: {solicitud.estado}. Solo se pueden editar solicitudes en estado "En Evaluación".', 'warning')
+        return redirect(url_for('evaluadores.view_equivalencia', id=solicitud.id))
     
     asignatura_origen = request.form.get('asignatura_origen')
     asignatura_destino = request.form.get('asignatura_destino')
@@ -145,6 +172,11 @@ def eliminar_dictamen(id):
     if current_user.rol != 'admin' and solicitud.evaluador_id != current_user.id:
         flash('No tienes permiso para eliminar este dictamen', 'danger')
         return redirect(url_for('evaluadores.list_equivalencias'))
+    
+    # Verificar si el evaluador puede editar la solicitud
+    if current_user.rol != 'admin' and solicitud.estado != 'en_evaluacion':
+        flash(f'No puede modificar esta solicitud. Estado actual: {solicitud.estado}. Solo se pueden editar solicitudes en estado "En Evaluación".', 'warning')
+        return redirect(url_for('evaluadores.view_equivalencia', id=solicitud.id))
     
     db.session.delete(dictamen)
     db.session.commit()

@@ -1,7 +1,8 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
 from app.models import Usuario, SolicitudEquivalencia
 from app import db
+from app.services.google_drive_service import GoogleDriveService
 from functools import wraps
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
@@ -137,3 +138,39 @@ def dashboard():
                            solicitudes_rechazadas=solicitudes_rechazadas,
                            usuarios_evaluadores=usuarios_evaluadores,
                            usuarios_depto=usuarios_depto)
+
+@admin_bp.route('/debug/google-drive', methods=['GET'])
+@login_required
+@admin_required
+def debug_google_drive():
+    """Ruta de debug para probar la conexión con Google Drive"""
+    try:
+        drive_service = GoogleDriveService()
+        
+        # Verificar configuración
+        config_result = drive_service.verificar_configuracion()
+        if not config_result['success']:
+            return jsonify({
+                'success': False,
+                'error': 'Configuración incompleta',
+                'missing_config': config_result['missing_config']
+            })
+        
+        # Intentar crear una carpeta de prueba
+        test_result = drive_service.crear_carpeta_equivalencia(
+            dni='12345678',
+            carrera_origen='Ingeniería de Prueba',
+            id_equivalencia='TEST-001',
+        )
+        
+        return jsonify({
+            'success': True,
+            'config_check': config_result,
+            'test_folder_creation': test_result
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Error en debug: {str(e)}'
+        })

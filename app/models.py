@@ -63,10 +63,19 @@ class SolicitudEquivalencia(db.Model):
     evaluador_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'))
     evaluador = db.relationship('Usuario', back_populates='solicitudes_asignadas')
     dictamenes = db.relationship('Dictamen', back_populates='solicitud', cascade='all, delete-orphan')
-    
-    # Archivo adjunto
+      # Archivo adjunto
     id_archivo_solicitud = db.Column(db.String(100))
     ruta_archivo = db.Column(db.String(255))
+    google_drive_file_id = db.Column(db.String(100))  # ID del archivo en Google Drive
+    
+    # Integración con Google Drive
+    google_drive_folder_id = db.Column(db.String(100))
+    google_drive_folder_name = db.Column(db.String(255))
+    google_drive_folder_url = db.Column(db.String(500))
+    
+    # Dictamen final document
+    dictamen_final_file_id = db.Column(db.String(100))  # ID del dictamen final en Google Drive
+    dictamen_final_url = db.Column(db.String(500))  # URL del dictamen final
     
     def __repr__(self):
         return f'<SolicitudEquivalencia {self.id_solicitud} - {self.estado}>'

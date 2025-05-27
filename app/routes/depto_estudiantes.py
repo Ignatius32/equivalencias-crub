@@ -2,6 +2,8 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 from app.models import SolicitudEquivalencia, Usuario, Dictamen
 from app import db
+from app.services.google_drive_service import GoogleDriveService
+from app.services.dictamen_service import DictamenService
 from functools import wraps
 import os
 from datetime import datetime
@@ -80,10 +82,65 @@ def new_equivalencia():
                 ruta_archivo = os.path.join(current_app.root_path, 'static/uploads', nombre_archivo)
                 archivo.save(ruta_archivo)
                 solicitud.ruta_archivo = f"uploads/{nombre_archivo}"
-        
-        # Guardar la solicitud en la base de datos
+          # Guardar la solicitud en la base de datos
         db.session.add(solicitud)
-        db.session.commit()        # Crear dictámenes iniciales para cada par de asignaturas si existen
+        db.session.commit()
+        
+        # Crear carpeta en Google Drive
+        try:
+            drive_service = GoogleDriveService()
+            config_check = drive_service.verificar_configuracion()
+            
+            if config_check['success']:
+                folder_result = drive_service.crear_carpeta_equivalencia(
+                    dni=solicitud.dni_solicitante,
+                    carrera_origen=solicitud.carrera_origen,
+                    id_equivalencia=solicitud.id_solicitud,
+                    timestamp=solicitud.fecha_solicitud
+                )
+                if folder_result['success']:
+                    # Actualizar la solicitud con la información de Google Drive
+                    solicitud.google_drive_folder_id = folder_result['folder_id']
+                    solicitud.google_drive_folder_name = folder_result['folder_name']
+                    solicitud.google_drive_folder_url = folder_result['folder_url']
+                    
+                    # Si hay archivo adjunto, subirlo a Google Drive
+                    if solicitud.ruta_archivo:
+                        archivo_local = os.path.join(current_app.root_path, 'static', solicitud.ruta_archivo)
+                        if os.path.exists(archivo_local):
+                            # Generar nombre del archivo según el formato especificado
+                            extension = os.path.splitext(solicitud.ruta_archivo)[1]
+                            nombre_archivo_drive = drive_service.generar_nombre_archivo_solicitud(
+                                dni=solicitud.dni_solicitante,
+                                carrera_origen=solicitud.carrera_origen,
+                                id_equivalencia=solicitud.id_solicitud,
+                                extension=extension
+                            )
+                            
+                            upload_result = drive_service.subir_archivo(
+                                folder_id=folder_result['folder_id'],
+                                file_path=archivo_local,
+                                file_name=nombre_archivo_drive
+                            )
+                            if upload_result['success']:
+                                solicitud.google_drive_file_id = upload_result['file_id']
+                                current_app.logger.info(f"Archivo subido a Google Drive: {upload_result['file_url']}")
+                            else:
+                                current_app.logger.error(f"Error al subir archivo a Google Drive: {upload_result.get('error')}")
+                    
+                    db.session.commit()
+                    flash(f'Solicitud creada correctamente. Carpeta de Google Drive: {folder_result["folder_name"]}', 'success')
+                else:
+                    flash('Solicitud creada, pero hubo un problema al crear la carpeta en Google Drive', 'warning')
+            else:
+                missing_config = ', '.join(config_check['missing_config'])
+                flash(f'Solicitud creada, pero falta configuración de Google Drive: {missing_config}', 'warning')
+                
+        except Exception as e:
+            current_app.logger.error(f"Error al crear carpeta en Google Drive: {str(e)}")
+            flash('Solicitud creada, pero hubo un error con Google Drive', 'warning')
+        
+        # Crear dictámenes iniciales para cada par de asignaturas si existen
         asignaturas_origen = request.form.getlist('asignatura_origen[]')
         asignaturas_destino = request.form.getlist('asignatura_destino[]')
         
@@ -112,8 +169,11 @@ def new_equivalencia():
 def edit_equivalencia(id):
     solicitud = SolicitudEquivalencia.query.get_or_404(id)
     evaluadores = Usuario.query.filter_by(rol='evaluador').all()
-    
     if request.method == 'POST':
+        # Guardar el estado anterior antes de modificar la solicitud
+        estado_anterior = solicitud.estado
+        nuevo_estado = request.form.get('estado')
+        
         solicitud.nombre_solicitante = request.form.get('nombre')
         solicitud.apellido_solicitante = request.form.get('apellido')
         solicitud.dni_solicitante = request.form.get('dni')
@@ -123,54 +183,173 @@ def edit_equivalencia(id):
         solicitud.carrera_origen = request.form.get('carrera_origen')
         solicitud.carrera_crub_destino = request.form.get('carrera_crub_destino')
         solicitud.observaciones_solicitante = request.form.get('observaciones')
-        solicitud.estado = request.form.get('estado')
-
-        # Manejar las asignaturas (dictámenes)
-        # Primero, eliminar todos los dictámenes existentes
-        for dictamen in solicitud.dictamenes:
-            db.session.delete(dictamen)
-          # Luego, crear los nuevos dictámenes si existen
-        asignaturas_origen = request.form.getlist('asignatura_origen[]')
-        asignaturas_destino = request.form.getlist('asignatura_destino[]')
         
-        # Solo crear dictámenes si se proporcionaron asignaturas
-        if asignaturas_origen and asignaturas_destino:
-            for origen, destino in zip(asignaturas_origen, asignaturas_destino):
-                if origen.strip() and destino.strip():  # Solo crear si ambos campos tienen contenido
-                    dictamen = Dictamen(
-                        asignatura_origen=origen,
-                        asignatura_destino=destino,
-                        tipo_equivalencia=None,
-                        observaciones=None,
-                        solicitud_id=solicitud.id
-                    )
-                    db.session.add(dictamen)
+        # Manejar las asignaturas (dictámenes)
+        
+        # Si el estado cambia de 'aprobada'/'rechazada' a 'en_evaluacion', 
+        # preservar los dictámenes que ya tienen evaluaciones
+        if (estado_anterior in ['aprobada', 'rechazada'] and 
+            nuevo_estado == 'en_evaluacion'):
+            
+            # Solo actualizar las asignaturas origen/destino, preservando las evaluaciones
+            asignaturas_origen = request.form.getlist('asignatura_origen[]')
+            asignaturas_destino = request.form.getlist('asignatura_destino[]')
+            
+            # Crear un diccionario de los dictámenes existentes por índice
+            dictamenes_existentes = list(solicitud.dictamenes)
+            
+            # Actualizar dictámenes existentes
+            for i, (origen, destino) in enumerate(zip(asignaturas_origen, asignaturas_destino)):
+                if origen.strip() and destino.strip():
+                    if i < len(dictamenes_existentes):
+                        # Actualizar dictamen existente preservando la evaluación
+                        dictamen = dictamenes_existentes[i]
+                        dictamen.asignatura_origen = origen
+                        dictamen.asignatura_destino = destino
+                        # NO tocar tipo_equivalencia, observaciones, evaluador_id, fecha_dictamen
+                    else:
+                        # Crear nuevo dictamen si hay más asignaturas que dictámenes existentes
+                        dictamen = Dictamen(
+                            asignatura_origen=origen,
+                            asignatura_destino=destino,
+                            tipo_equivalencia=None,
+                            observaciones=None,
+                            solicitud_id=solicitud.id
+                        )
+                        db.session.add(dictamen)
+            
+            # Eliminar dictámenes sobrantes si hay menos asignaturas que dictámenes
+            pares_validos = sum(1 for origen, destino in zip(asignaturas_origen, asignaturas_destino) 
+                              if origen.strip() and destino.strip())
+            if pares_validos < len(dictamenes_existentes):
+                for dictamen in dictamenes_existentes[pares_validos:]:
+                    db.session.delete(dictamen)
+                    
+        else:
+            # Comportamiento normal: eliminar todos los dictámenes y recrear
+            for dictamen in solicitud.dictamenes:
+                db.session.delete(dictamen)
+                
+            # Luego, crear los nuevos dictámenes si existen
+            asignaturas_origen = request.form.getlist('asignatura_origen[]')
+            asignaturas_destino = request.form.getlist('asignatura_destino[]')
+            
+            # Solo crear dictámenes si se proporcionaron asignaturas
+            if asignaturas_origen and asignaturas_destino:
+                for origen, destino in zip(asignaturas_origen, asignaturas_destino):
+                    if origen.strip() and destino.strip():  # Solo crear si ambos campos tienen contenido
+                        dictamen = Dictamen(
+                            asignatura_origen=origen,
+                            asignatura_destino=destino,
+                            tipo_equivalencia=None,
+                            observaciones=None,
+                            solicitud_id=solicitud.id
+                        )
+                        db.session.add(dictamen)
         
         # Actualizar evaluador
         evaluador_id = request.form.get('evaluador_id')
         if evaluador_id:
-            solicitud.evaluador_id = evaluador_id
-        
-        # Manejar archivos adjuntos si se sube uno nuevo
+            solicitud.evaluador_id = evaluador_id        # Manejar archivos adjuntos si se sube uno nuevo
         if 'archivo_solicitud' in request.files:
             archivo = request.files['archivo_solicitud']
             if archivo.filename:
-                # Eliminar archivo anterior si existe
+                current_app.logger.info(f"Reemplazando archivo para solicitud {solicitud.id_solicitud}")
+                
+                # 1. Eliminar archivo anterior del sistema de archivos local si existe
                 if solicitud.ruta_archivo:
                     ruta_anterior = os.path.join(current_app.root_path, 'static', solicitud.ruta_archivo)
                     if os.path.exists(ruta_anterior):
-                        os.remove(ruta_anterior)
+                        try:
+                            os.remove(ruta_anterior)
+                            current_app.logger.info(f"Archivo local anterior eliminado: {ruta_anterior}")
+                        except Exception as e:
+                            current_app.logger.error(f"Error al eliminar archivo local anterior: {str(e)}")
                 
-                # Generar nombre único para el nuevo archivo
+                # 2. Eliminar archivo anterior de Google Drive si existe
+                if solicitud.google_drive_file_id and solicitud.google_drive_folder_id:
+                    try:
+                        drive_service = GoogleDriveService()
+                        config_check = drive_service.verificar_configuracion()
+                        
+                        if config_check['success']:
+                            delete_result = drive_service.eliminar_archivo(solicitud.google_drive_file_id)
+                            if delete_result['success']:
+                                current_app.logger.info(f"Archivo anterior eliminado de Google Drive: {solicitud.google_drive_file_id}")
+                                # Limpiar el file_id ya que el archivo fue eliminado
+                                solicitud.google_drive_file_id = None
+                            else:
+                                current_app.logger.warning(f"No se pudo eliminar archivo anterior de Google Drive: {delete_result.get('error')}")
+                    except Exception as e:
+                        current_app.logger.error(f"Error al eliminar archivo anterior de Google Drive: {str(e)}")
+                
+                # 3. Generar nuevo ID único para el archivo
                 archivo_id = str(uuid.uuid4())
                 solicitud.id_archivo_solicitud = archivo_id
                 
-                # Guardar el archivo
+                # 4. Guardar el nuevo archivo localmente
                 extension = os.path.splitext(archivo.filename)[1]
                 nombre_archivo = f"{archivo_id}{extension}"
                 ruta_archivo = os.path.join(current_app.root_path, 'static/uploads', nombre_archivo)
+                
+                # Asegurar que el directorio uploads existe
+                os.makedirs(os.path.dirname(ruta_archivo), exist_ok=True)
+                
                 archivo.save(ruta_archivo)
                 solicitud.ruta_archivo = f"uploads/{nombre_archivo}"
+                current_app.logger.info(f"Nuevo archivo guardado localmente: {ruta_archivo}")
+                
+                # 5. Subir nuevo archivo a Google Drive si la carpeta existe
+                if solicitud.google_drive_folder_id:
+                    try:
+                        drive_service = GoogleDriveService()
+                        config_check = drive_service.verificar_configuracion()
+                        
+                        if config_check['success']:
+                            # Generar nombre del archivo según el formato especificado
+                            nombre_archivo_drive = drive_service.generar_nombre_archivo_solicitud(
+                                dni=solicitud.dni_solicitante,
+                                carrera_origen=solicitud.carrera_origen,
+                                id_equivalencia=solicitud.id_solicitud,
+                                extension=extension
+                            )
+                            
+                            upload_result = drive_service.subir_archivo(
+                                folder_id=solicitud.google_drive_folder_id,
+                                file_path=ruta_archivo,
+                                file_name=nombre_archivo_drive
+                            )
+                            if upload_result['success']:
+                                solicitud.google_drive_file_id = upload_result['file_id']
+                                current_app.logger.info(f"Nuevo archivo subido a Google Drive: {upload_result['file_url']}")
+                                flash('Archivo reemplazado exitosamente en Google Drive', 'success')
+                            else:
+                                current_app.logger.error(f"Error al subir nuevo archivo a Google Drive: {upload_result.get('error')}")
+                                flash('Archivo guardado localmente, pero hubo un error al subirlo a Google Drive', 'warning')                        
+                        else:
+                            current_app.logger.warning("Google Drive no configurado correctamente")
+                            flash('Archivo guardado localmente, pero Google Drive no está disponible', 'warning')
+                    except Exception as e:
+                        current_app.logger.error(f"Error al subir archivo a Google Drive: {str(e)}")
+                        flash('Archivo guardado localmente, pero hubo un error con Google Drive', 'warning')
+                else:
+                    current_app.logger.warning("No hay carpeta de Google Drive asociada a esta solicitud")
+                    flash('Archivo actualizado localmente', 'success')
+          # Asignar el nuevo estado al final del proceso
+        if nuevo_estado != estado_anterior:
+            solicitud.estado = nuevo_estado
+            
+            # Manejar cambios de estado y dictamen final
+            dictamen_service = DictamenService()
+            dictamen_result = dictamen_service.manejar_cambio_estado(solicitud, estado_anterior, nuevo_estado)
+            
+            if not dictamen_result['success']:
+                flash(f'Error al procesar dictamen: {dictamen_result["error"]}', 'warning')
+            else:
+                if dictamen_result['message'] != 'No se requiere acción para el dictamen final':
+                    flash(dictamen_result['message'], 'info')
+        else:
+            solicitud.estado = nuevo_estado
         
         db.session.commit()
         flash('Solicitud de equivalencia actualizada correctamente', 'success')
@@ -183,6 +362,21 @@ def edit_equivalencia(id):
 @depto_required
 def delete_equivalencia(id):
     solicitud = SolicitudEquivalencia.query.get_or_404(id)
+    
+    # Eliminar carpeta de Google Drive si existe
+    if solicitud.google_drive_folder_id:
+        try:
+            drive_service = GoogleDriveService()
+            config_check = drive_service.verificar_configuracion()
+            
+            if config_check['success']:
+                delete_result = drive_service.eliminar_carpeta(solicitud.google_drive_folder_id)
+                if delete_result['success']:
+                    current_app.logger.info(f"Carpeta de Google Drive eliminada: {solicitud.google_drive_folder_id}")
+                else:
+                    current_app.logger.warning(f"No se pudo eliminar la carpeta de Google Drive: {solicitud.google_drive_folder_id}")
+        except Exception as e:
+            current_app.logger.error(f"Error al eliminar carpeta de Google Drive: {str(e)}")
     
     # Eliminar archivo asociado si existe
     if solicitud.ruta_archivo:
