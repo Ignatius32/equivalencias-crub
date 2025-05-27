@@ -229,3 +229,13 @@ def asignar_evaluador(solicitud_id):
         flash('Solicitud sin evaluador asignado', 'info')
     
     return redirect(url_for('depto.list_equivalencias'))
+
+@depto_bp.route('/equivalencias/ver/<int:id>')
+@login_required
+@depto_required
+def view_equivalencia(id):
+    solicitud = SolicitudEquivalencia.query.get_or_404(id)
+    evaluadores = Usuario.query.filter_by(rol='evaluador').all()
+    return render_template('depto_estudiantes/view_equivalencia.html', 
+                         solicitud=solicitud,
+                         evaluadores=evaluadores)

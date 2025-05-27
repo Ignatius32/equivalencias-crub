@@ -75,16 +75,21 @@ class SolicitudEquivalencia(db.Model):
 class Dictamen(db.Model):
     """Modelo para los dictámenes de equivalencia"""
     __tablename__ = 'dictamenes'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     asignatura_origen = db.Column(db.String(200), nullable=False)
     asignatura_destino = db.Column(db.String(200))
     tipo_equivalencia = db.Column(db.String(50))  # 'total', 'parcial', etc.
     observaciones = db.Column(db.Text)
+    fecha_dictamen = db.Column(db.DateTime)
     
     # Relación con la solicitud
     solicitud_id = db.Column(db.Integer, db.ForeignKey('solicitudes_equivalencia.id'), nullable=False)
     solicitud = db.relationship('SolicitudEquivalencia', back_populates='dictamenes')
+    
+    # Relación con el evaluador
+    evaluador_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'))
+    evaluador = db.relationship('Usuario')
     
     def __repr__(self):
         return f'<Dictamen {self.id} - {self.asignatura_origen} -> {self.asignatura_destino}>'

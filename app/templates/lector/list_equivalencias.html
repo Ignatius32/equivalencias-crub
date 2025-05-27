@@ -1,0 +1,72 @@
+﻿{% extends "base.html" %}
+{% block title %}Lista de Solicitudes de Equivalencias - Sistema de Equivalencias CRUB{% endblock %}
+
+{% block header %}Solicitudes de Equivalencias{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-file-alt"></i> Solicitudes de Equivalencias</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Solicitante</th>
+                        <th>Legajo</th>
+                        <th>Fecha de Solicitud</th>
+                        <th>Carrera Destino</th>
+                        <th>Estado</th>
+                        <th>Evaluador</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for solicitud in solicitudes %}
+                    <tr>
+                        <td>{{ solicitud.id_solicitud }}</td>
+                        <td>{{ solicitud.nombre_solicitante }} {{ solicitud.apellido_solicitante }}</td>
+                        <td>{{ solicitud.legajo_crub }}</td>
+                        <td>{{ solicitud.fecha_solicitud.strftime("%d/%m/%Y") }}</td>
+                        <td>{{ solicitud.carrera_crub_destino }}</td>
+                        <td>
+                            {% if solicitud.estado == "pendiente" %}
+                                <span class="badge bg-warning text-dark">Pendiente</span>
+                            {% elif solicitud.estado == "en_evaluacion" %}
+                                <span class="badge bg-info">En Evaluación</span>
+                            {% elif solicitud.estado == "aprobada" %}
+                                <span class="badge bg-success">Aprobada</span>
+                            {% elif solicitud.estado == "rechazada" %}
+                                <span class="badge bg-danger">Rechazada</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if solicitud.evaluador %}
+                                {{ solicitud.evaluador.nombre }} {{ solicitud.evaluador.apellido }}
+                            {% else %}
+                                <span class="text-muted">No asignado</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{{ url_for("lector.view_equivalencia", id=solicitud.id) }}" class="btn btn-outline-secondary" title="Ver">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            {% if not solicitudes %}
+            <div class="alert alert-info text-center">
+                <i class="fas fa-info-circle me-2"></i> No hay solicitudes de equivalencias registradas.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

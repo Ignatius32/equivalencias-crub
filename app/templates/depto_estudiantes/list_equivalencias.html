@@ -51,9 +51,11 @@
                             {% else %}
                                 <span class="text-muted">No asignado</span>
                             {% endif %}
-                        </td>
-                        <td>
+                        </td>                        <td>
                             <div class="btn-group btn-group-sm" role="group">
+                                <a href="{{ url_for('depto.view_equivalencia', id=solicitud.id) }}" class="btn btn-outline-secondary" title="Ver">
+                                    <i class="fas fa-eye"></i>
+                                </a>
                                 <a href="{{ url_for('depto.edit_equivalencia', id=solicitud.id) }}" class="btn btn-outline-primary" title="Editar">
                                     <i class="fas fa-edit"></i>
                                 </a>

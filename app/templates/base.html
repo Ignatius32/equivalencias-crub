@@ -27,9 +27,8 @@
                 <ul class="navbar-nav ms-auto">
                     {% if current_user.is_authenticated %}
                         {% if current_user.rol == 'admin' %}
-                            <li class="nav-item">
-                                <a class="nav-link" href="{{ url_for('admin.index') }}">
-                                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                            <li class="nav-item">                                <a class="nav-link" href="{{ url_for('admin.index') }}">
+                                    <i class="fas fa-tachometer-alt"></i> Panel de Control
                                 </a>
                             </li>
                             <li class="nav-item">

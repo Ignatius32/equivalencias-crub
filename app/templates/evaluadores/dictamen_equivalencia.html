@@ -26,6 +26,23 @@
                     <p><strong>Institución de Origen:</strong> {{ solicitud.institucion_origen }}</p>
                     <p><strong>Carrera de Origen:</strong> {{ solicitud.carrera_origen }}</p>
                     <p><strong>Carrera CRUB:</strong> {{ solicitud.carrera_crub_destino }}</p>
+                </div>            </div>
+
+            <!-- Estado general de la solicitud -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <label class="form-label">Estado de la Solicitud</label>
+                    <select class="form-select" name="estado_solicitud">
+                        <option value="en_evaluacion" {% if solicitud.estado == 'en_evaluacion' %}selected{% endif %}>
+                            En Evaluación
+                        </option>
+                        <option value="aprobada" {% if solicitud.estado == 'aprobada' %}selected{% endif %}>
+                            Aprobada
+                        </option>
+                        <option value="rechazada" {% if solicitud.estado == 'rechazada' %}selected{% endif %}>
+                            Rechazada
+                        </option>
+                    </select>
                 </div>
             </div>
 
@@ -33,8 +50,7 @@
             <div id="dictamenes-container">
                 <h5 class="mb-3">Asignaturas y Dictámenes</h5>
                 {% for dictamen in solicitud.dictamenes %}
-                <div class="card mb-3">
-                    <div class="card-header d-flex justify-content-between align-items-center">
+                <div class="card mb-3">                    <div class="card-header d-flex justify-content-between align-items-center">
                         <h6 class="mb-0">Dictamen #{{ loop.index }}</h6>
                         <div>
                             <button type="button" class="btn btn-sm btn-danger remove-dictamen" data-id="{{ dictamen.id }}">
@@ -93,24 +109,6 @@
                 <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#modalAgregarAsignatura">
                     <i class="fas fa-plus"></i> Agregar Asignatura
                 </button>
-            </div>
-
-            <!-- Estado general de la solicitud -->
-            <div class="row mb-4">
-                <div class="col-md-6">
-                    <label class="form-label">Estado de la Solicitud</label>
-                    <select class="form-select" name="estado_solicitud">
-                        <option value="en_evaluacion" {% if solicitud.estado == 'en_evaluacion' %}selected{% endif %}>
-                            En Evaluación
-                        </option>
-                        <option value="aprobada" {% if solicitud.estado == 'aprobada' %}selected{% endif %}>
-                            Aprobada
-                        </option>
-                        <option value="rechazada" {% if solicitud.estado == 'rechazada' %}selected{% endif %}>
-                            Rechazada
-                        </option>
-                    </select>
-                </div>
             </div>            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                 <button type="submit" class="btn btn-primary">
                     Guardar Dictamen

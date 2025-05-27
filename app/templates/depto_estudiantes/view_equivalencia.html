@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block title %}Ver Solicitud de Equivalencia - Sistema de Equivalencias CRUB{% endblock %}
+
+{% block header %}Ver Solicitud de Equivalencia{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="fas fa-file-alt"></i> Solicitud #{{ solicitud.id_solicitud }}</h5>
+        <span class="badge {% if solicitud.estado == 'pendiente' %}bg-warning text-dark{% elif solicitud.estado == 'en_evaluacion' %}bg-info{% elif solicitud.estado == 'aprobada' %}bg-success{% elif solicitud.estado == 'rechazada' %}bg-danger{% endif %}">
+            {{ solicitud.estado|title }}
+        </span>
+    </div>
+    <div class="card-body">
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <h6>Datos del Solicitante</h6>
+                <dl class="row">
+                    <dt class="col-sm-4">Nombre:</dt>
+                    <dd class="col-sm-8">{{ solicitud.nombre_solicitante }} {{ solicitud.apellido_solicitante }}</dd>
+                    
+                    <dt class="col-sm-4">DNI:</dt>
+                    <dd class="col-sm-8">{{ solicitud.dni_solicitante }}</dd>
+                    
+                    <dt class="col-sm-4">Legajo CRUB:</dt>
+                    <dd class="col-sm-8">{{ solicitud.legajo_crub }}</dd>
+                    
+                    <dt class="col-sm-4">Correo:</dt>
+                    <dd class="col-sm-8">{{ solicitud.correo_solicitante }}</dd>
+                </dl>
+            </div>
+            <div class="col-md-6">
+                <h6>Datos Académicos</h6>
+                <dl class="row">
+                    <dt class="col-sm-4">Institución Origen:</dt>
+                    <dd class="col-sm-8">{{ solicitud.institucion_origen }}</dd>
+                    
+                    <dt class="col-sm-4">Carrera Origen:</dt>
+                    <dd class="col-sm-8">{{ solicitud.carrera_origen }}</dd>
+                    
+                    <dt class="col-sm-4">Carrera CRUB:</dt>
+                    <dd class="col-sm-8">{{ solicitud.carrera_crub_destino }}</dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col">
+                <h6>Información de la Solicitud</h6>
+                <dl class="row">
+                    <dt class="col-sm-3">Fecha de Solicitud:</dt>
+                    <dd class="col-sm-9">{{ solicitud.fecha_solicitud.strftime('%d/%m/%Y') }}</dd>
+                    
+                    {% if solicitud.fecha_resolucion %}
+                    <dt class="col-sm-3">Fecha de Resolución:</dt>
+                    <dd class="col-sm-9">{{ solicitud.fecha_resolucion.strftime('%d/%m/%Y') }}</dd>
+                    {% endif %}
+                    
+                    <dt class="col-sm-3">Evaluador:</dt>
+                    <dd class="col-sm-9">
+                        {% if solicitud.evaluador %}
+                            {{ solicitud.evaluador.nombre }} {{ solicitud.evaluador.apellido }}
+                            ({{ solicitud.evaluador.departamento_academico }})
+                        {% else %}
+                            <span class="text-muted">No asignado</span>
+                        {% endif %}
+                    </dd>
+
+                    {% if solicitud.observaciones_solicitante %}
+                    <dt class="col-sm-3">Observaciones:</dt>
+                    <dd class="col-sm-9">{{ solicitud.observaciones_solicitante }}</dd>
+                    {% endif %}
+
+                    {% if solicitud.ruta_archivo %}
+                    <dt class="col-sm-3">Documentación:</dt>
+                    <dd class="col-sm-9">
+                        <a href="{{ url_for('static', filename=solicitud.ruta_archivo) }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-download"></i> Ver Documentación Adjunta
+                        </a>
+                    </dd>
+                    {% endif %}
+                </dl>
+            </div>
+        </div>
+
+        {% if solicitud.dictamenes %}
+        <div class="row">
+            <div class="col">
+                <h6>Dictámenes</h6>
+                {% for dictamen in solicitud.dictamenes %}
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h6 class="mb-0">Dictamen #{{ loop.index }}</h6>
+                    </div>
+                    <div class="card-body">
+                        <dl class="row mb-0">
+                            <dt class="col-sm-3">Asignatura de Origen:</dt>
+                            <dd class="col-sm-9">{{ dictamen.asignatura_origen }}</dd>
+                            
+                            <dt class="col-sm-3">Asignatura CRUB:</dt>
+                            <dd class="col-sm-9">{{ dictamen.asignatura_destino or 'No especificada' }}</dd>
+                            
+                            <dt class="col-sm-3">Estado:</dt>
+                            <dd class="col-sm-9">
+                                {% if dictamen.tipo_equivalencia %}
+                                    {% if dictamen.tipo_equivalencia == 'total' %}
+                                        <span class="badge bg-success">Equivalencia Total</span>
+                                    {% elif dictamen.tipo_equivalencia == 'parcial' %}
+                                        <span class="badge bg-warning">Equivalencia Parcial</span>
+                                    {% elif dictamen.tipo_equivalencia == 'sin_equivalencia' %}
+                                        <span class="badge bg-danger">Sin Equivalencia</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="badge bg-secondary">Pendiente</span>
+                                {% endif %}
+                            </dd>
+                            
+                            {% if dictamen.observaciones %}
+                            <dt class="col-sm-3">Observaciones:</dt>
+                            <dd class="col-sm-9">{{ dictamen.observaciones }}</dd>
+                            {% endif %}
+                        </dl>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}        <div class="mt-4">
+            <a href="{{ url_for('depto.list_equivalencias') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para asignar evaluador -->
+{% if not solicitud.evaluador_id %}
+<div class="modal fade" id="asignarEvaluador" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Asignar Evaluador</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('depto.asignar_evaluador', solicitud_id=solicitud.id) }}" method="post">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="evaluador_id" class="form-label">Seleccionar Evaluador</label>
+                        <select class="form-select" id="evaluador_id" name="evaluador_id" required>
+                            <option value="" selected disabled>-- Seleccione un evaluador --</option>
+                            {% for evaluador in evaluadores %}
+                            <option value="{{ evaluador.id }}">
+                                {{ evaluador.nombre }} {{ evaluador.apellido }} - {{ evaluador.departamento_academico }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Asignar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

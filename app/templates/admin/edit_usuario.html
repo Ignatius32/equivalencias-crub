@@ -35,11 +35,11 @@
                             <input type="text" class="form-control" id="telefono" name="telefono" value="{{ usuario.telefono or '' }}">
                         </div>
                         <div class="mb-3">
-                            <label for="rol" class="form-label">Rol</label>
-                            <select class="form-select" id="rol" name="rol" required>
+                            <label for="rol" class="form-label">Rol</label>                            <select class="form-select" id="rol" name="rol" required>
                                 <option value="admin" {% if usuario.rol == 'admin' %}selected{% endif %}>Administrador</option>
                                 <option value="depto_estudiantes" {% if usuario.rol == 'depto_estudiantes' %}selected{% endif %}>Departamento de Estudiantes</option>
                                 <option value="evaluador" {% if usuario.rol == 'evaluador' %}selected{% endif %}>Evaluador</option>
+                                <option value="lector" {% if usuario.rol == 'lector' %}selected{% endif %}>Lector</option>
                             </select>
                         </div>
                         

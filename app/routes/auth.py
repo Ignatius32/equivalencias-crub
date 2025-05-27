@@ -52,19 +52,23 @@ def login():
         
         # Proceso normal de login para otros usuarios
         user = Usuario.query.filter_by(username=username).first()
-        if user and user.check_password(password):
+        
+        if user and check_password_hash(user.password_hash, password):
             login_user(user, remember=remember)
             flash(f'¡Bienvenido {user.nombre}!', 'success')
             
-            # Redirigir según el rol
+            # Redireccionar según el rol
             if user.rol == 'admin':
                 return redirect(url_for('admin.index'))
             elif user.rol == 'depto_estudiantes':
                 return redirect(url_for('depto.list_equivalencias'))
             elif user.rol == 'evaluador':
                 return redirect(url_for('evaluadores.list_equivalencias'))
-        else:
-            flash('Usuario o contraseña incorrectos', 'danger')
+            elif user.rol == 'lector':
+                return redirect(url_for('lector.list_equivalencias'))
+            
+        flash('Usuario o contraseña incorrectos', 'danger')
+        return redirect(url_for('auth.login'))
     
     return render_template('auth/login.html')
 

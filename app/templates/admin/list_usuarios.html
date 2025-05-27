@@ -31,13 +31,14 @@
                         <td>{{ usuario.id }}</td>
                         <td>{{ usuario.username }}</td>
                         <td>{{ usuario.nombre }} {{ usuario.apellido }}</td>
-                        <td>
-                            {% if usuario.rol == 'admin' %}
+                        <td>                            {% if usuario.rol == 'admin' %}
                             <span class="badge bg-danger">Administrador</span>
                             {% elif usuario.rol == 'depto_estudiantes' %}
                             <span class="badge bg-primary">Depto. Estudiantes</span>
                             {% elif usuario.rol == 'evaluador' %}
                             <span class="badge bg-success">Evaluador</span>
+                            {% elif usuario.rol == 'lector' %}
+                            <span class="badge bg-info">Lector</span>
                             {% endif %}
                         </td>
                         <td>{{ usuario.email }}</td>

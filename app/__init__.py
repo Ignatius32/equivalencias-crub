@@ -32,11 +32,13 @@ def create_app():
     from app.routes.admin import admin_bp
     from app.routes.depto_estudiantes import depto_bp
     from app.routes.evaluadores import evaluadores_bp
+    from app.routes.lector import lector_bp
     
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(depto_bp)
     app.register_blueprint(evaluadores_bp)
+    app.register_blueprint(lector_bp)
     
     # Asegurarse de que la carpeta de subida de archivos exista
     os.makedirs(os.path.join(app.root_path, 'static/uploads'), exist_ok=True)

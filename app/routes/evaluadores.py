@@ -52,7 +52,11 @@ def dictamen_equivalencia(id):
     
     if current_user.rol != 'admin' and solicitud.evaluador_id != current_user.id:
         flash('No tienes permiso para acceder a esta solicitud', 'danger')
-        return redirect(url_for('evaluadores.list_equivalencias'))
+        return redirect(url_for('evaluadores.list_equivalencias'))    # Obtener lista de evaluadores si el usuario es admin
+    evaluadores = None
+    if current_user.rol == 'admin':
+        from app.models import Usuario
+        evaluadores = Usuario.query.filter(Usuario.rol.in_(['evaluador', 'admin'])).all()
     
     if request.method == 'POST':
         # Procesar cada dictamen
@@ -68,8 +72,18 @@ def dictamen_equivalencia(id):
             
             dictamen.tipo_equivalencia = nuevo_tipo
             dictamen.observaciones = request.form.get(f'{prefix}_observaciones')
-        
-        # Actualizar estado de la solicitud
+            
+            # Si es la primera vez que se establece un tipo de equivalencia, guardar el evaluador
+            if nuevo_tipo and not dictamen.evaluador_id:
+                dictamen.evaluador_id = current_user.id
+                dictamen.fecha_dictamen = datetime.now()
+            
+            # Si es admin, permitir cambiar el evaluador
+            if current_user.rol == 'admin':
+                nuevo_evaluador_id = request.form.get(f'{prefix}_evaluador_id')
+                if nuevo_evaluador_id:
+                    dictamen.evaluador_id = int(nuevo_evaluador_id)
+          # Actualizar estado de la solicitud
         estado_nuevo = request.form.get('estado_solicitud')
         if estado_nuevo:
             # Verificar si hay dictámenes pendientes
@@ -87,7 +101,9 @@ def dictamen_equivalencia(id):
         flash('Dictamen actualizado correctamente', 'success')
         return redirect(url_for('evaluadores.view_equivalencia', id=solicitud.id))
     
-    return render_template('evaluadores/dictamen_equivalencia.html', solicitud=solicitud)
+    return render_template('evaluadores/dictamen_equivalencia.html', 
+                         solicitud=solicitud,
+                         evaluadores=evaluadores)
 
 @evaluadores_bp.route('/agregar_dictamen/<int:solicitud_id>', methods=['POST'])
 @login_required
