@@ -57,14 +57,7 @@
                     <tr>
                         <th>Carrera CRUB Destino:</th>
                         <td>{{ solicitud.carrera_crub_destino }}</td>
-                    </tr>                    <tr>
-                        <th>Asignaturas Solicitadas:</th>
-                        <td>
-                            {% for dictamen in solicitud.dictamenes %}
-                            <div>• {{ dictamen.asignatura_origen }} → {{ dictamen.asignatura_destino }}</div>
-                            {% endfor %}
-                        </td>
-                    </tr>
+                    
                 </table>
             </div>
         </div>
@@ -84,35 +77,48 @@
         </div>
         {% endif %}
         
-        {% if solicitud.ruta_archivo %}
         <div class="row">
             <div class="col-12">
-                <div class="card border-primary">
+                <div class="card border-primary mb-2">
                     <div class="card-header bg-primary text-white">
-                        <h6 class="mb-0">Documentación</h6>
+                        <h6 class="mb-0">Documentación del solicitante</h6>
                     </div>
                     <div class="card-body">
-                        <p>A continuación puede acceder a la documentación proporcionada por el solicitante:</p>
-                        <a href="{{ url_for('static', filename=solicitud.ruta_archivo) }}" target="_blank" class="btn btn-primary">
-                            <i class="fas fa-file-pdf"></i> Ver Documentación Completa
-                        </a>
+                        {% if solicitud.google_drive_file_id %}
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="showDocumentModal('{{ solicitud.google_drive_file_id }}')">
+                            <i class="fas fa-file-pdf"></i> Ver documentación
+                        </button>
+                        {% else %}
+                        <span class="text-muted">No hay documentación adjunta.</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card border-secondary">
+                    <div class="card-header bg-secondary text-white">
+                        <h6 class="mb-0">Documentación Complementaria</h6>
+                    </div>
+                    <div class="card-body">
+                        {% if solicitud.doc_complementaria_file_id %}
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="showDocumentModal('{{ solicitud.doc_complementaria_file_id }}')">
+                            <i class="fas fa-file-pdf"></i> Ver documentación complementaria
+                        </button>
+                        {% else %}
+                        <span class="text-muted">No hay documentación complementaria adjunta.</span>
+                        {% endif %}
                     </div>
                 </div>
             </div>
         </div>
-        {% else %}
-        <div class="alert alert-warning">
-            <i class="fas fa-exclamation-triangle me-2"></i> Esta solicitud no tiene documentación adjunta.
-        </div>
-        {% endif %}
         
         <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
             <a href="{{ url_for('evaluadores.list_equivalencias') }}" class="btn btn-secondary">
                 <i class="fas fa-arrow-left"></i> Volver
             </a>
+            {% if solicitud.estado == 'en_evaluacion' %}
             <a href="{{ url_for('evaluadores.dictamen_equivalencia', id=solicitud.id) }}" class="btn btn-primary">
-                <i class="fas fa-gavel"></i> Emitir Dictamen
+                <i class="fas fa-gavel"></i> Emitir Dictamen Parcial
             </a>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -120,7 +126,7 @@
 {% if solicitud.dictamenes %}
 <div class="card">
     <div class="card-header">
-        <h5 class="mb-0"><i class="fas fa-clipboard-list"></i> Dictámenes Actuales</h5>
+        <h5 class="mb-0"><i class="fas fa-clipboard-list"></i> Dictámenes Parciales Actuales</h5>
     </div>
     <div class="card-body">
         <div class="table-responsive">

@@ -35,7 +35,9 @@ def index():
 @depto_required
 def list_equivalencias():
     solicitudes = SolicitudEquivalencia.query.all()
-    return render_template('depto_estudiantes/list_equivalencias.html', solicitudes=solicitudes)
+    evaluadores = Usuario.query.filter_by(rol='evaluador').all()
+    from flask_login import current_user
+    return render_template('depto_estudiantes/list_equivalencias.html', solicitudes=solicitudes, evaluadores=evaluadores, current_user=current_user)
 
 @depto_bp.route('/equivalencias/nueva', methods=['GET', 'POST'])
 @login_required
@@ -50,7 +52,7 @@ def new_equivalencia():
         # Crear solicitud de equivalencia
         solicitud = SolicitudEquivalencia(
             id_solicitud=id_solicitud,
-            estado='pendiente',
+            estado='en_evaluacion',
             fecha_solicitud=datetime.now(),
             
             nombre_solicitante=request.form.get('nombre'),
@@ -75,13 +77,24 @@ def new_equivalencia():
                 # Generar nombre único para el archivo
                 archivo_id = str(uuid.uuid4())
                 solicitud.id_archivo_solicitud = archivo_id
-                
                 # Guardar el archivo
                 extension = os.path.splitext(archivo.filename)[1]
                 nombre_archivo = f"{archivo_id}{extension}"
                 ruta_archivo = os.path.join(current_app.root_path, 'static/uploads', nombre_archivo)
                 archivo.save(ruta_archivo)
                 solicitud.ruta_archivo = f"uploads/{nombre_archivo}"
+
+        # Manejar documentación complementaria
+        if 'doc_complementaria' in request.files:
+            doc_complementaria = request.files['doc_complementaria']
+            if doc_complementaria.filename:
+                doc_complementaria_id = str(uuid.uuid4())
+                extension = os.path.splitext(doc_complementaria.filename)[1]
+                nombre_doc_complementaria = f"{doc_complementaria_id}{extension}"
+                ruta_doc_complementaria = os.path.join(current_app.root_path, 'static/uploads', nombre_doc_complementaria)
+                doc_complementaria.save(ruta_doc_complementaria)
+                solicitud.doc_complementaria_url = f"uploads/{nombre_doc_complementaria}"
+                # El file_id de Google Drive se asignará tras la subida
           # Guardar la solicitud en la base de datos
         db.session.add(solicitud)
         db.session.commit()
@@ -128,6 +141,22 @@ def new_equivalencia():
                             else:
                                 current_app.logger.error(f"Error al subir archivo a Google Drive: {upload_result.get('error')}")
                     
+                    # Subir documentación complementaria si existe
+                    if solicitud.doc_complementaria_url:
+                        archivo_local = os.path.join(current_app.root_path, 'static', solicitud.doc_complementaria_url)
+                        if os.path.exists(archivo_local):
+                            extension = os.path.splitext(solicitud.doc_complementaria_url)[1]
+                            nombre_archivo_drive = f"DOC_COMPLEMENTARIA_{solicitud.id_solicitud}{extension}"
+                            upload_result = drive_service.subir_archivo(
+                                folder_id=folder_result['folder_id'],
+                                file_path=archivo_local,
+                                file_name=nombre_archivo_drive
+                            )
+                            if upload_result['success']:
+                                solicitud.doc_complementaria_file_id = upload_result['file_id']
+                                current_app.logger.info(f"Doc. complementaria subida a Google Drive: {upload_result['file_url']}")
+                            else:
+                                current_app.logger.error(f"Error al subir doc. complementaria a Google Drive: {upload_result.get('error')}")
                     db.session.commit()
                     flash(f'Solicitud creada correctamente. Carpeta de Google Drive: {folder_result["folder_name"]}', 'success')
                 else:
@@ -250,12 +279,13 @@ def edit_equivalencia(id):
         # Actualizar evaluador
         evaluador_id = request.form.get('evaluador_id')
         if evaluador_id:
-            solicitud.evaluador_id = evaluador_id        # Manejar archivos adjuntos si se sube uno nuevo
+            solicitud.evaluador_id = evaluador_id
+
+        # Manejar archivos adjuntos si se sube uno nuevo
         if 'archivo_solicitud' in request.files:
             archivo = request.files['archivo_solicitud']
             if archivo.filename:
                 current_app.logger.info(f"Reemplazando archivo para solicitud {solicitud.id_solicitud}")
-                
                 # 1. Eliminar archivo anterior del sistema de archivos local si existe
                 if solicitud.ruta_archivo:
                     ruta_anterior = os.path.join(current_app.root_path, 'static', solicitud.ruta_archivo)
@@ -265,55 +295,43 @@ def edit_equivalencia(id):
                             current_app.logger.info(f"Archivo local anterior eliminado: {ruta_anterior}")
                         except Exception as e:
                             current_app.logger.error(f"Error al eliminar archivo local anterior: {str(e)}")
-                
                 # 2. Eliminar archivo anterior de Google Drive si existe
                 if solicitud.google_drive_file_id and solicitud.google_drive_folder_id:
                     try:
                         drive_service = GoogleDriveService()
                         config_check = drive_service.verificar_configuracion()
-                        
                         if config_check['success']:
                             delete_result = drive_service.eliminar_archivo(solicitud.google_drive_file_id)
                             if delete_result['success']:
                                 current_app.logger.info(f"Archivo anterior eliminado de Google Drive: {solicitud.google_drive_file_id}")
-                                # Limpiar el file_id ya que el archivo fue eliminado
                                 solicitud.google_drive_file_id = None
                             else:
                                 current_app.logger.warning(f"No se pudo eliminar archivo anterior de Google Drive: {delete_result.get('error')}")
                     except Exception as e:
                         current_app.logger.error(f"Error al eliminar archivo anterior de Google Drive: {str(e)}")
-                
                 # 3. Generar nuevo ID único para el archivo
                 archivo_id = str(uuid.uuid4())
                 solicitud.id_archivo_solicitud = archivo_id
-                
                 # 4. Guardar el nuevo archivo localmente
                 extension = os.path.splitext(archivo.filename)[1]
                 nombre_archivo = f"{archivo_id}{extension}"
                 ruta_archivo = os.path.join(current_app.root_path, 'static/uploads', nombre_archivo)
-                
-                # Asegurar que el directorio uploads existe
                 os.makedirs(os.path.dirname(ruta_archivo), exist_ok=True)
-                
                 archivo.save(ruta_archivo)
                 solicitud.ruta_archivo = f"uploads/{nombre_archivo}"
                 current_app.logger.info(f"Nuevo archivo guardado localmente: {ruta_archivo}")
-                
                 # 5. Subir nuevo archivo a Google Drive si la carpeta existe
                 if solicitud.google_drive_folder_id:
                     try:
                         drive_service = GoogleDriveService()
                         config_check = drive_service.verificar_configuracion()
-                        
                         if config_check['success']:
-                            # Generar nombre del archivo según el formato especificado
                             nombre_archivo_drive = drive_service.generar_nombre_archivo_solicitud(
                                 dni=solicitud.dni_solicitante,
                                 carrera_origen=solicitud.carrera_origen,
                                 id_equivalencia=solicitud.id_solicitud,
                                 extension=extension
                             )
-                            
                             upload_result = drive_service.subir_archivo(
                                 folder_id=solicitud.google_drive_folder_id,
                                 file_path=ruta_archivo,
@@ -325,7 +343,7 @@ def edit_equivalencia(id):
                                 flash('Archivo reemplazado exitosamente en Google Drive', 'success')
                             else:
                                 current_app.logger.error(f"Error al subir nuevo archivo a Google Drive: {upload_result.get('error')}")
-                                flash('Archivo guardado localmente, pero hubo un error al subirlo a Google Drive', 'warning')                        
+                                flash('Archivo guardado localmente, pero hubo un error al subirlo a Google Drive', 'warning')
                         else:
                             current_app.logger.warning("Google Drive no configurado correctamente")
                             flash('Archivo guardado localmente, pero Google Drive no está disponible', 'warning')
@@ -335,6 +353,61 @@ def edit_equivalencia(id):
                 else:
                     current_app.logger.warning("No hay carpeta de Google Drive asociada a esta solicitud")
                     flash('Archivo actualizado localmente', 'success')
+
+        # Manejar documentación complementaria si se sube una nueva
+        if 'doc_complementaria' in request.files:
+            doc_complementaria = request.files['doc_complementaria']
+            if doc_complementaria.filename:
+                # Eliminar archivo local anterior si existe
+                if solicitud.doc_complementaria_url:
+                    ruta_anterior = os.path.join(current_app.root_path, 'static', solicitud.doc_complementaria_url)
+                    if os.path.exists(ruta_anterior):
+                        try:
+                            os.remove(ruta_anterior)
+                        except Exception as e:
+                            current_app.logger.error(f"Error al eliminar doc. complementaria local anterior: {str(e)}")
+                # Eliminar archivo anterior de Google Drive si existe
+                if solicitud.doc_complementaria_file_id and solicitud.google_drive_folder_id:
+                    try:
+                        drive_service = GoogleDriveService()
+                        config_check = drive_service.verificar_configuracion()
+                        if config_check['success']:
+                            delete_result = drive_service.eliminar_archivo(solicitud.doc_complementaria_file_id)
+                            if delete_result['success']:
+                                solicitud.doc_complementaria_file_id = None
+                        else:
+                            current_app.logger.warning("No se pudo eliminar doc. complementaria de Google Drive")
+                    except Exception as e:
+                        current_app.logger.error(f"Error al eliminar doc. complementaria de Google Drive: {str(e)}")
+                # Guardar nuevo archivo localmente
+                doc_complementaria_id = str(uuid.uuid4())
+                extension = os.path.splitext(doc_complementaria.filename)[1]
+                nombre_doc_complementaria = f"{doc_complementaria_id}{extension}"
+                ruta_doc_complementaria = os.path.join(current_app.root_path, 'static/uploads', nombre_doc_complementaria)
+                os.makedirs(os.path.dirname(ruta_doc_complementaria), exist_ok=True)
+                doc_complementaria.save(ruta_doc_complementaria)
+                solicitud.doc_complementaria_url = f"uploads/{nombre_doc_complementaria}"
+                # Subir a Google Drive si la carpeta existe
+                if solicitud.google_drive_folder_id:
+                    try:
+                        drive_service = GoogleDriveService()
+                        config_check = drive_service.verificar_configuracion()
+                        if config_check['success']:
+                            nombre_archivo_drive = f"DOC_COMPLEMENTARIA_{solicitud.id_solicitud}{extension}"
+                            upload_result = drive_service.subir_archivo(
+                                folder_id=solicitud.google_drive_folder_id,
+                                file_path=ruta_doc_complementaria,
+                                file_name=nombre_archivo_drive
+                            )
+                            if upload_result['success']:
+                                solicitud.doc_complementaria_file_id = upload_result['file_id']
+                                current_app.logger.info(f"Doc. complementaria subida a Google Drive: {upload_result['file_url']}")
+                            else:
+                                current_app.logger.error(f"Error al subir doc. complementaria a Google Drive: {upload_result.get('error')}")
+                        else:
+                            current_app.logger.warning("Google Drive no configurado correctamente para doc. complementaria")
+                    except Exception as e:
+                        current_app.logger.error(f"Error al subir doc. complementaria a Google Drive: {str(e)}")
           # Asignar el nuevo estado al final del proceso
         if nuevo_estado != estado_anterior:
             solicitud.estado = nuevo_estado

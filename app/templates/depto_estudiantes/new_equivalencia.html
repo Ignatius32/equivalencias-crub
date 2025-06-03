@@ -133,10 +133,28 @@
                 </div>
                 
                 <div class="col-12 mt-3">
-                    <div class="mb-3">
-                        <label for="archivo_solicitud" class="form-label">Archivo de Documentación</label>
-                        <input class="form-control" type="file" id="archivo_solicitud" name="archivo_solicitud">
+                    <!-- Sección Documentación del Solicitante -->
+                    <div class="mb-3 border rounded p-3">
+                        <div class="mb-2 fw-bold">Documentación del solicitante</div>
+                        <input class="form-control mb-2" type="file" id="archivo_solicitud" name="archivo_solicitud">
                         <small class="form-text text-muted">Formato PDF recomendado. Tamaño máximo: 10MB</small>
+                        <!-- Botón para ver archivo (solo si ya existe, en edición) -->
+                        {% if solicitud and solicitud.google_drive_file_id %}
+                        <button type="button" class="btn btn-outline-primary btn-sm mt-2" onclick="showDocumentModal('{{ solicitud.google_drive_file_id }}')">
+                            <i class="fas fa-file-pdf"></i> Ver documentación actual
+                        </button>
+                        {% endif %}
+                    </div>
+                    <!-- Sección Documentación Complementaria -->
+                    <div class="mb-3 border rounded p-3">
+                        <div class="mb-2 fw-bold">Documentación Complementaria</div>
+                        <input class="form-control mb-2" type="file" id="doc_complementaria" name="doc_complementaria">
+                        <small class="form-text text-muted">Opcional. Formato PDF recomendado. Tamaño máximo: 10MB</small>
+                        {% if solicitud and solicitud.doc_complementaria_file_id %}
+                        <button type="button" class="btn btn-outline-secondary btn-sm mt-2" onclick="showDocumentModal('{{ solicitud.doc_complementaria_file_id }}')">
+                            <i class="fas fa-file-pdf"></i> Ver documentación complementaria actual
+                        </button>
+                        {% endif %}
                     </div>
                     
                     <div class="mb-3">

@@ -1,3 +1,83 @@
+    <!-- Modal global para visualizar PDF de Google Drive -->
+    <div class="modal fade" id="documentModal" tabindex="-1" aria-labelledby="documentModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="documentModalLabel">Documentación Adjunta</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+          </div>
+          <div class="modal-body">
+            <div class="d-flex justify-content-end mb-2">
+              <a id="openInNewTabBtn" href="#" target="_blank" class="btn btn-outline-primary me-2">
+                <i class="fas fa-external-link-alt"></i> Abrir en pestaña nueva
+              </a>
+              <a id="downloadBtn" href="#" target="_blank" class="btn btn-outline-success">
+                <i class="fas fa-download"></i> Descargar
+              </a>
+            </div>
+            <div id="documentViewerContainer"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+    // Modal global para visualizar archivos de Google Drive (PDF, DOC, etc)
+    let documentModalInstance = null;
+    // Guarda el último id y tipo abierto para el botón de descarga
+    let lastDriveId = null;
+    let lastType = null;
+    function showDocumentModal(driveId, type) {
+      var viewer = document.getElementById('documentViewerContainer');
+      var openBtn = document.getElementById('openInNewTabBtn');
+      var downloadBtn = document.getElementById('downloadBtn');
+      lastDriveId = driveId;
+      lastType = type;
+      if (!driveId) {
+        viewer.innerHTML = '<div class="alert alert-warning">No se puede visualizar el documento.</div>';
+        openBtn.style.display = 'none';
+        downloadBtn.style.display = 'none';
+        documentModalInstance = new bootstrap.Modal(document.getElementById('documentModal'));
+        documentModalInstance.show();
+        return;
+      }
+      // Detectar tipo de archivo ("pdf", "doc", "docx", etc)
+      type = type || 'pdf';
+      let previewUrl = '';
+      let downloadUrl = `https://drive.google.com/uc?export=download&id=${driveId}`;
+      // Usar endpoint backend para servir el archivo privado
+      previewUrl = `/descargar_archivo_drive/${driveId}`;
+      viewer.innerHTML = `<iframe src="${previewUrl}" width="100%" height="600px" allow="autoplay"></iframe>`;
+      openBtn.href = previewUrl;
+      downloadBtn.href = previewUrl;
+      openBtn.style.display = '';
+      downloadBtn.style.display = '';
+      documentModalInstance = new bootstrap.Modal(document.getElementById('documentModal'));
+      documentModalInstance.show();
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+      var openBtn = document.getElementById('openInNewTabBtn');
+      var downloadBtn = document.getElementById('downloadBtn');
+      if (openBtn) {
+        openBtn.addEventListener('click', function(e) {
+          if (documentModalInstance) {
+            setTimeout(function() {
+              documentModalInstance.hide();
+            }, 200);
+          }
+        });
+      }
+      if (downloadBtn) {
+        downloadBtn.addEventListener('click', function(e) {
+          if (documentModalInstance) {
+            setTimeout(function() {
+              documentModalInstance.hide();
+            }, 200);
+          }
+        });
+      }
+    });
+    </script>
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -43,7 +123,7 @@
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for('evaluadores.list_equivalencias') }}">
-                                    <i class="fas fa-clipboard-check"></i> Dictámenes
+                                    <i class="fas fa-clipboard-check"></i> Dictámenes Parciales
                                 </a>
                             </li>
                         {% elif current_user.rol == 'depto_estudiantes' %}

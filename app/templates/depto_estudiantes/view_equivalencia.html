@@ -7,9 +7,16 @@
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0"><i class="fas fa-file-alt"></i> Solicitud #{{ solicitud.id_solicitud }}</h5>
-        <span class="badge {% if solicitud.estado == 'pendiente' %}bg-warning text-dark{% elif solicitud.estado == 'en_evaluacion' %}bg-info{% elif solicitud.estado == 'aprobada' %}bg-success{% elif solicitud.estado == 'rechazada' %}bg-danger{% endif %}">
-            {{ solicitud.estado|title }}
-        </span>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge {% if solicitud.estado == 'pendiente' %}bg-warning text-dark{% elif solicitud.estado == 'en_evaluacion' %}bg-info{% elif solicitud.estado == 'aprobada' %}bg-success{% elif solicitud.estado == 'rechazada' %}bg-danger{% endif %}">
+                {{ solicitud.estado|title }}
+            </span>
+            {% if solicitud.dictamen_final_file_id %}
+            <button type="button" class="btn btn-outline-primary btn-sm ms-2" onclick="showDocumentModal('{{ solicitud.dictamen_final_file_id }}', 'doc')">
+                <i class="fas fa-file-alt"></i> Ver Dictamen Final
+            </button>
+            {% endif %}
+        </div>
     </div>
     <div class="card-body">
         <div class="row mb-4">
@@ -64,19 +71,27 @@
                         {% endif %}
                     </dd>
                     
-                    {% if solicitud.ruta_archivo %}
-                    <dt class="col-sm-3">Documentación:</dt>
+
+                    <dt class="col-sm-3">Documentación del solicitante:</dt>
                     <dd class="col-sm-9">
-                        <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#documentModal">
-                            <i class="fas fa-file-pdf"></i> Ver Documento
+                        {% if solicitud.google_drive_file_id %}
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="showDocumentModal('{{ solicitud.google_drive_file_id }}')">
+                            <i class="fas fa-file-pdf"></i> Ver documentación del solicitante
                         </button>
-                        {% if solicitud.google_drive_folder_url %}
-                        <a href="{{ solicitud.google_drive_folder_url }}" target="_blank" class="btn btn-outline-success btn-sm ms-2">
-                            <i class="fab fa-google-drive"></i> Carpeta Google Drive
-                        </a>
+                        {% else %}
+                        <span class="text-muted">No hay documentación adjunta.</span>
                         {% endif %}
                     </dd>
-                    {% endif %}
+                    <dt class="col-sm-3">Documentación Complementaria:</dt>
+                    <dd class="col-sm-9">
+                        {% if solicitud.doc_complementaria_file_id %}
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="showDocumentModal('{{ solicitud.doc_complementaria_file_id }}')">
+                            <i class="fas fa-file-pdf"></i> Ver documentación complementaria
+                        </button>
+                        {% else %}
+                        <span class="text-muted">No hay documentación complementaria adjunta.</span>
+                        {% endif %}
+                    </dd>
                     
                     {% if solicitud.observaciones_solicitante %}
                     <dt class="col-sm-3">Observaciones:</dt>
@@ -89,11 +104,16 @@
         {% if solicitud.dictamenes %}
         <div class="row">
             <div class="col">
-                <h6>Dictámenes</h6>
+                <h6>Dictámenes Parciales</h6>
                 {% for dictamen in solicitud.dictamenes %}
                 <div class="card mb-3">
-                    <div class="card-header">
-                        <h6 class="mb-0">Dictamen #{{ loop.index }}</h6>
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">Dictamen Parcial #{{ loop.index }}</h6>
+                        {% if dictamen.dictamen_final_file_id %}
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="showDocumentModal('{{ dictamen.dictamen_final_file_id }}', 'dictamen')">
+                            <i class="fas fa-file-pdf"></i> Ver Dictamen Final
+                        </button>
+                        {% endif %}
                     </div>
                     <div class="card-body">
                         <dl class="row mb-0">
@@ -127,9 +147,15 @@
                 </div>
                 {% endfor %}
             </div>
-        </div>        {% endif %}
+        </div>
+        {% endif %}
 
-        <div class="mt-4">
+        <div class="mt-4 d-flex gap-2">
+            {% if solicitud.dictamen_final_file_id %}
+            <button type="button" class="btn btn-outline-primary" onclick="showDocumentModal('{{ solicitud.dictamen_final_file_id }}', 'doc')">
+                <i class="fas fa-file-alt"></i> Ver Dictamen Final
+            </button>
+            {% endif %}
             <a href="{{ url_for('depto.list_equivalencias') }}" class="btn btn-secondary">
                 <i class="fas fa-arrow-left"></i> Volver
             </a>
@@ -194,11 +220,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                {% if solicitud.google_drive_folder_url %}
-                <a href="{{ solicitud.google_drive_folder_url }}" target="_blank" class="btn btn-primary">
-                    <i class="fab fa-google-drive"></i> Ver en Google Drive
-                </a>
-                {% endif %}
+                {# Botón Google Drive eliminado #}
             </div>
         </div>
     </div>

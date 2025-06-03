@@ -76,7 +76,14 @@ class SolicitudEquivalencia(db.Model):
     # Dictamen final document
     dictamen_final_file_id = db.Column(db.String(100))  # ID del dictamen final en Google Drive
     dictamen_final_url = db.Column(db.String(500))  # URL del dictamen final
-    
+
+    # Firma digital del evaluador
+    firma_evaluador = db.Column(db.String(255))
+
+    # Documentación complementaria
+    doc_complementaria_file_id = db.Column(db.String(100))  # ID del archivo complementario en Google Drive
+    doc_complementaria_url = db.Column(db.String(500))  # URL del archivo complementario
+
     def __repr__(self):
         return f'<SolicitudEquivalencia {self.id_solicitud} - {self.estado}>'
 

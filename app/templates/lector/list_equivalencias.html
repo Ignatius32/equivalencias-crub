@@ -19,7 +19,7 @@
                         <th>Fecha de Solicitud</th>                        <th>Carrera Destino</th>
                         <th>Estado</th>
                         <th>Evaluador</th>
-                        <th>Dictamen</th>
+                        <th>Dictamen Final</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
@@ -49,10 +49,10 @@
                             {% endif %}
                         </td>
                         <td>
-                            {% if solicitud.dictamen_final_url %}
-                                <a href="{{ solicitud.dictamen_final_url }}" target="_blank" class="btn btn-sm btn-outline-primary" title="Ver Dictamen Final">
-                                    <i class="fas fa-file-alt"></i> Dictamen
-                                </a>
+                            {% if solicitud.dictamen_final_file_id %}
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="showDocumentModal('{{ solicitud.dictamen_final_file_id }}', 'doc')" title="Ver Dictamen Final">
+                                    <i class="fas fa-file-alt"></i> Dictamen Final
+                                </button>
                             {% else %}
                                 <span class="text-muted">-</span>
                             {% endif %}

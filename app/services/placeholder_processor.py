@@ -22,6 +22,7 @@ class PlaceholderProcessor:
         try:
             # Basic solicitud information
             placeholders = {
+                '{{FIRMA_EVALUADOR}}': solicitud.firma_evaluador or '',
                 '{{ID_SOLICITUD}}': solicitud.id_solicitud or '',
                 '{{FECHA_SOLICITUD}}': solicitud.fecha_solicitud.strftime('%d/%m/%Y') if solicitud.fecha_solicitud else '',
                 '{{FECHA_RESOLUCION}}': solicitud.fecha_resolucion.strftime('%d/%m/%Y') if solicitud.fecha_resolucion else '',

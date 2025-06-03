@@ -28,7 +28,7 @@ def login():
                 db.session.add(user)
                 db.session.commit()
             login_user(user, remember=remember)
-            flash('¡Bienvenido Administrador!', 'success')
+            flash('Administrador, te damos la bienvenida al Sistema de solicitudes de equivalencias.', 'success')
             return redirect(url_for('admin.index'))
         
         # Validación especial para depto_estudiantes (acceso rápido)
@@ -47,7 +47,7 @@ def login():
                 db.session.add(user)
                 db.session.commit()
             login_user(user, remember=remember)
-            flash('¡Bienvenido Departamento de Estudiantes!', 'success')
+            flash('Departamento de Estudiantes, te damos la bienvenida al Sistema de solicitudes de equivalencias.', 'success')
             return redirect(url_for('depto.list_equivalencias'))
         
         # Proceso normal de login para otros usuarios
@@ -55,7 +55,7 @@ def login():
         
         if user and check_password_hash(user.password_hash, password):
             login_user(user, remember=remember)
-            flash(f'¡Bienvenido {user.nombre}!', 'success')
+            flash(f'{user.nombre}, te damos la bienvenida al Sistema de solicitudes de equivalencias.', 'success')
             
             # Redireccionar según el rol
             if user.rol == 'admin':

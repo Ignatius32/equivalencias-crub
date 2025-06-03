@@ -12,7 +12,7 @@
         </span>
     </div>
     <div class="card-body">
-        <form method="POST" action="{{ url_for('depto.edit_equivalencia', id=solicitud.id) }}" enctype="multipart/form-data">
+        <form id="form-editar-solicitud" method="POST" action="{{ url_for('depto.edit_equivalencia', id=solicitud.id) }}" enctype="multipart/form-data">
             <div class="row">
                 <!-- Columna Izquierda -->
                 <div class="col-md-6">
@@ -46,7 +46,6 @@
                     <div class="mb-3">
                         <label for="estado" class="form-label">Estado de la Solicitud</label>
                         <select class="form-select" id="estado" name="estado" required>
-                            <option value="pendiente" {% if solicitud.estado == 'pendiente' %}selected{% endif %}>Pendiente</option>
                             <option value="en_evaluacion" {% if solicitud.estado == 'en_evaluacion' %}selected{% endif %}>En Evaluación</option>
                             <option value="aprobada" {% if solicitud.estado == 'aprobada' %}selected{% endif %}>Aprobada</option>
                             <option value="rechazada" {% if solicitud.estado == 'rechazada' %}selected{% endif %}>Rechazada</option>
@@ -72,32 +71,7 @@
                         <label for="carrera_crub_destino" class="form-label">Carrera CRUB Destino</label>
                         <input type="text" class="form-control" id="carrera_crub_destino" name="carrera_crub_destino" value="{{ solicitud.carrera_crub_destino }}" required>
                     </div>
-                      <div class="col-12 mt-3">
-                    <h5 class="mb-3">Asignaturas Solicitadas</h5>
-                    <div id="asignaturas-container">
-                        {% for dictamen in solicitud.dictamenes %}
-                        <div class="asignatura-par mb-2">
-                            <div class="row">
-                                <div class="col-md-5">
-                                    <input type="text" class="form-control" name="asignatura_origen[]" placeholder="Asignatura/s de origen" value="{{ dictamen.asignatura_origen }}">
-                                </div>
-                                <div class="col-md-5">
-                                    <input type="text" class="form-control" name="asignatura_destino[]" placeholder="Asignatura de destino" value="{{ dictamen.asignatura_destino }}">
-                                </div>
-                                <div class="col-md-2">
-                                    <button type="button" class="btn btn-danger btn-sm remove-asignatura">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    <button type="button" class="btn btn-secondary mt-2" id="agregar-asignatura">
-                        <i class="fas fa-plus"></i> Agregar Asignatura
-                    </button>
-                    <small class="form-text text-muted">Puede dejar esta sección vacía y agregar las asignaturas más tarde.</small>
-                </div>
+                      {# Se eliminó la sección de Asignaturas Solicitadas en edición, ya que se gestionan como dictámenes parciales #}
 
                 <script>
                     document.addEventListener('DOMContentLoaded', function() {
@@ -147,28 +121,52 @@
                     </div>
                 </div>
                 
-                <div class="col-12 mt-3">                    {% if solicitud.ruta_archivo %}
-                    <div class="mb-3">
-                        <label class="form-label">Documentación Actual</label>
-                        <div class="d-flex align-items-center">
-                            <button type="button" class="btn btn-sm btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#documentModal">
-                                <i class="fas fa-file-pdf"></i> Ver documento
+                <div class="col-12 mt-3">
+                    <!-- Sección Documentación del Solicitante -->
+                    <div class="mb-3 border rounded p-3">
+                        <div class="mb-2 fw-bold">Documentación del Solicitante</div>
+                        <div class="mb-2">
+                        {% if solicitud.google_drive_file_id %}
+                            <button type="button" class="btn btn-outline-primary btn-sm mb-2" onclick="showDocumentModal('{{ solicitud.google_drive_file_id }}')">
+                                <i class="fas fa-file-pdf"></i> Ver documentación actual
                             </button>
-                            {% if solicitud.google_drive_folder_url %}
-                            <a href="{{ solicitud.google_drive_folder_url }}" target="_blank" class="btn btn-sm btn-outline-success me-2">
-                                <i class="fab fa-google-drive"></i> Google Drive
-                            </a>
-                            {% endif %}
-                            <span class="text-muted small">Subido el {{ solicitud.fecha_solicitud.strftime('%d/%m/%Y') }}</span>
+                        {% endif %}
                         </div>
+                        <div class="input-group mb-2">
+                            <input type="file" class="form-control visually-hidden" id="archivo_solicitud" name="archivo_solicitud" onchange="document.getElementById('label-archivo-solicitud').innerText = this.files[0] ? this.files[0].name : (this.dataset.hasfile === 'true' ? 'Reemplazar archivo' : 'Seleccionar archivo')" data-hasfile="{{ 'true' if solicitud.google_drive_file_id else 'false' }}">
+                            <button type="button" class="btn btn-secondary" onclick="document.getElementById('archivo_solicitud').click()" id="label-archivo-solicitud">{{ 'Reemplazar archivo' if solicitud.google_drive_file_id else 'Seleccionar archivo' }}</button>
+                        </div>
+                        <small class="form-text text-muted">
+                            {% if solicitud.google_drive_file_id %}
+                                Al subir un archivo, se reemplazará la documentación del solicitante existente.
+                            {% else %}
+                                Puede adjuntar un archivo PDF.
+                            {% endif %}
+                        </small>
                     </div>
-                    {% endif %}
+                    <!-- Sección Documentación Complementaria -->
+                    <div class="mb-3 border rounded p-3">
+                        <div class="mb-2 fw-bold">Documentación Complementaria</div>
+                        <div class="mb-2">
+                        {% if solicitud.doc_complementaria_file_id %}
+                            <button type="button" class="btn btn-outline-secondary btn-sm mb-2" onclick="showDocumentModal('{{ solicitud.doc_complementaria_file_id }}')">
+                                <i class="fas fa-file-pdf"></i> Ver documentación complementaria actual
+                            </button>
+                        {% endif %}
+                        </div>
+                        <div class="input-group mb-2">
+                            <input type="file" class="form-control visually-hidden" id="doc_complementaria" name="doc_complementaria" onchange="document.getElementById('label-doc-complementaria').innerText = this.files[0] ? this.files[0].name : (this.dataset.hasfile === 'true' ? 'Reemplazar archivo' : 'Seleccionar archivo')" data-hasfile="{{ 'true' if solicitud.doc_complementaria_file_id else 'false' }}">
+                            <button type="button" class="btn btn-secondary" onclick="document.getElementById('doc_complementaria').click()" id="label-doc-complementaria">{{ 'Reemplazar archivo' if solicitud.doc_complementaria_file_id else 'Seleccionar archivo' }}</button>
+                        </div>
+                        <small class="form-text text-muted">
+                            {% if solicitud.doc_complementaria_file_id %}
+                                Al subir un archivo, se reemplazará la documentación complementaria existente.
+                            {% else %}
+                                Puede adjuntar un archivo PDF.
+                            {% endif %}
+                        </small>
+                    </div>
                     
-                    <div class="mb-3">
-                        <label for="archivo_solicitud" class="form-label">Reemplazar Archivo (opcional)</label>
-                        <input class="form-control" type="file" id="archivo_solicitud" name="archivo_solicitud">
-                        <small class="form-text text-muted">Deje en blanco para mantener el archivo actual.</small>
-                    </div>
                     
                     <div class="mb-3">
                         <label for="observaciones" class="form-label">Observaciones</label>
@@ -180,6 +178,64 @@
             <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
                 <a href="{{ url_for('depto.list_equivalencias') }}" class="btn btn-secondary">Cancelar</a>
                 <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+<!-- Modal de confirmación de cierre de solicitud -->
+<div class="modal fade" id="modalCerrarSolicitud" tabindex="-1" aria-labelledby="modalCerrarSolicitudLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalCerrarSolicitudLabel">Confirmar cierre de solicitud</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <span id="mensaje-cierre-solicitud"></span>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btn-confirmar-cierre">Continuar</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('form-editar-solicitud');
+    const estadoSelect = document.getElementById('estado');
+    const btnConfirmar = document.getElementById('btn-confirmar-cierre');
+    let submitPendiente = false;
+
+    form.addEventListener('submit', function(e) {
+        // Solo interceptar si el estado es aprobada o rechazada
+        const estado = estadoSelect.value;
+        if ((estado === 'aprobada' || estado === 'rechazada') && !submitPendiente) {
+            // Verificar si hay dictámenes pendientes
+            let hayPendiente = false;
+            document.querySelectorAll('table.table tbody tr').forEach(function(row) {
+                const tipoEquiv = row.querySelector('td:nth-child(3)');
+                if (tipoEquiv && tipoEquiv.textContent.trim() === 'Pendiente') {
+                    hayPendiente = true;
+                }
+            });
+            if (hayPendiente) {
+                alert('No puede cerrar la solicitud porque existen dictámenes en estado Pendiente.');
+                e.preventDefault();
+                return false;
+            } else {
+                // Mostrar modal de confirmación
+                e.preventDefault();
+                const mensaje = `Usted está cerrando la solicitud con estado <b>${estado.charAt(0).toUpperCase() + estado.slice(1)}</b> y ya no podrá realizar cambios en la misma. ¿Continuar o Cancelar?`;
+                document.getElementById('mensaje-cierre-solicitud').innerHTML = mensaje;
+                const modal = new bootstrap.Modal(document.getElementById('modalCerrarSolicitud'));
+                modal.show();
+            }
+        }
+    });
+
+    btnConfirmar.addEventListener('click', function() {
+        submitPendiente = true;
+        form.submit();
+    });
+});
+</script>
             </div>
         </form>
     </div>
@@ -228,39 +284,7 @@
 {% endif %}
 
 <!-- Modal para ver documento -->
-{% if solicitud.ruta_archivo %}
-<div class="modal fade" id="documentModal" tabindex="-1">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Documentación de la Solicitud #{{ solicitud.id_solicitud }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div id="documentViewer" class="text-center">
-                    <div class="mb-3">
-                        <a href="{{ url_for('static', filename=solicitud.ruta_archivo) }}" target="_blank" class="btn btn-outline-primary">
-                            <i class="fas fa-external-link-alt"></i> Abrir en Nueva Pestaña
-                        </a>
-                        <a href="{{ url_for('static', filename=solicitud.ruta_archivo) }}" download class="btn btn-outline-success">
-                            <i class="fas fa-download"></i> Descargar
-                        </a>
-                    </div>
-                    <embed src="{{ url_for('static', filename=solicitud.ruta_archivo) }}" type="application/pdf" width="100%" height="700px" />
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                {% if solicitud.google_drive_folder_url %}
-                <a href="{{ solicitud.google_drive_folder_url }}" target="_blank" class="btn btn-primary">
-                    <i class="fab fa-google-drive"></i> Ver en Google Drive
-                </a>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-</div>
-{% endif %}
+
 
 <script>
 // Función para manejar errores al cargar el PDF embebido

@@ -12,7 +12,7 @@
         </span>
     </div>
     <div class="card-body">
-        <form method="POST">
+        <form method="POST" enctype="multipart/form-data">
             <!-- Información del solicitante -->
             <div class="row mb-4">
                 <div class="col-md-6">
@@ -28,6 +28,49 @@
                     <p><strong>Carrera CRUB:</strong> {{ solicitud.carrera_crub_destino }}</p>
                 </div>            </div>
 
+            <!-- Documentación del solicitante y complementaria -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="mb-3 border rounded p-3">
+                        <div class="mb-2 fw-bold">Documentación del Solicitante</div>
+                        {% if solicitud.google_drive_file_id %}
+                            <button type="button" class="btn btn-outline-primary btn-sm mb-2" onclick="showDocumentModal('{{ solicitud.google_drive_file_id }}')">
+                                <i class="fas fa-file-pdf"></i> Ver documentación actual
+                            </button>
+                        {% else %}
+                            <span class="text-muted">No hay documentación adjunta.</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3 border rounded p-3">
+                        <div class="mb-2 fw-bold">Documentación Complementaria</div>
+                            <div class="mb-2">
+                                {% if solicitud.doc_complementaria_file_id %}
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="showDocumentModal('{{ solicitud.doc_complementaria_file_id }}')">
+                                        <i class="fas fa-file-pdf"></i> Ver documentación complementaria actual
+                                    </button>
+                                {% endif %}
+                            </div>
+                            <div class="input-group mb-2">
+                                <input type="file" class="form-control visually-hidden" id="doc_complementaria" name="doc_complementaria" onchange="document.getElementById('label-doc-complementaria').innerText = this.files[0] ? this.files[0].name : (this.dataset.hasfile === 'true' ? 'Reemplazar archivo' : 'Seleccionar archivo')" data-hasfile="{{ 'true' if solicitud.doc_complementaria_file_id else 'false' }}">
+                                <button type="button" class="btn btn-secondary" onclick="document.getElementById('doc_complementaria').click()" id="label-doc-complementaria">
+                                    {% if solicitud.doc_complementaria_file_id %}Reemplazar archivo{% else %}Seleccionar archivo{% endif %}
+                                </button>
+                            </div>
+                            {% if not solicitud.doc_complementaria_file_id %}
+                                <span class="text-muted">No hay documentación complementaria adjunta.</span>
+                            {% endif %}
+                            <small class="form-text text-muted">
+                                {% if solicitud.doc_complementaria_file_id %}
+                                    Al subir un archivo, se reemplazará la documentación complementaria existente.
+                                {% else %}
+                                    Puede adjuntar un archivo PDF.
+                                {% endif %}
+                            </small>
+                    </div>
+                </div>
+            </div>
             <!-- Estado general de la solicitud -->
             <div class="row mb-4">
                 <div class="col-md-6">
@@ -51,7 +94,7 @@
                 <h5 class="mb-3">Asignaturas y Dictámenes</h5>
                 {% for dictamen in solicitud.dictamenes %}
                 <div class="card mb-3">                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h6 class="mb-0">Dictamen #{{ loop.index }}</h6>
+                        <h6 class="mb-0">Dictamen Parcial #{{ loop.index }}</h6>
                         <div>
                             <button type="button" class="btn btn-sm btn-danger remove-dictamen" data-id="{{ dictamen.id }}">
                                 <i class="fas fa-trash"></i> Eliminar
@@ -97,7 +140,7 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Observaciones</label>
-                            <textarea class="form-control" name="dictamen_{{ dictamen.id }}_observaciones" rows="2">{{ dictamen.observaciones }}</textarea>
+                            <textarea class="form-control" name="dictamen_{{ dictamen.id }}_observaciones" rows="2">{{ dictamen.observaciones or '' }}</textarea>
                         </div>
                     </div>
                 </div>
@@ -111,7 +154,7 @@
                 </button>
             </div>            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                 <button type="submit" class="btn btn-primary" id="guardarDictamen">
-                    Guardar Dictamen
+                    Guardar cambios
                 </button>
             </div>
         </form>

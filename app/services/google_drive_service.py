@@ -5,6 +5,25 @@ from datetime import datetime
 from flask import current_app
 
 class GoogleDriveService:
+    def obtener_contenido_archivo(self, file_id):
+        """
+        Descarga el contenido de un archivo de Google Drive usando Apps Script
+        Args:
+            file_id (str): ID del archivo a descargar
+        Returns:
+            dict: {'success': True, 'content': base64, 'mimeType': str, 'fileName': str} o {'success': False, 'error': str}
+        """
+        data = {'fileId': file_id}
+        result = self._make_request('getFileContent', data)
+        if result and result.get('success'):
+            return {
+                'success': True,
+                'content': result.get('content'),
+                'mimeType': result.get('mimeType'),
+                'fileName': result.get('fileName')
+            }
+        else:
+            return {'success': False, 'error': result.get('message', 'Error desconocido') if result else 'Sin respuesta del servidor'}
     """Servicio para interactuar con Google Drive a través de Google Apps Script"""
     
     def __init__(self):
