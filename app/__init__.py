@@ -21,6 +21,11 @@ def create_app():
     app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///equivalencias.db')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
+    # Configurar carpeta de uploads temporal
+    app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'temp_uploads')
+    # Asegurar que la carpeta existe
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    
     # Inicializar extensiones con la app
     db.init_app(app)
     migrate.init_app(app, db)

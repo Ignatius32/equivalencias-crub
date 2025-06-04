@@ -46,28 +46,59 @@
                     <div class="mb-3 border rounded p-3">
                         <div class="mb-2 fw-bold">Documentación Complementaria</div>
                             <div class="mb-2">
-                                {% if solicitud.doc_complementaria_file_id %}
-                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="showDocumentModal('{{ solicitud.doc_complementaria_file_id }}')">
-                                        <i class="fas fa-file-pdf"></i> Ver documentación complementaria actual
-                                    </button>
+                                {% if solicitud.doc_complementaria_file_id %}                                    <div class="d-flex gap-2 align-items-center">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="showDocumentModal('{{ solicitud.doc_complementaria_file_id }}')">
+                                            <i class="fas fa-file-pdf"></i> Ver documentación complementaria actual
+                                        </button>
+                                        {% if current_user.rol == 'admin' or current_user.rol == 'evaluador' %}
+                                        <button type="button" class="btn btn-danger btn-sm" onclick="confirmarEliminarArchivo({{ solicitud.id }}, 'complementaria')">
+                                            <i class="fas fa-trash"></i> Eliminar
+                                        </button>
+                                        {% endif %}
+                                    </div>
                                 {% endif %}
-                            </div>
-                            <div class="input-group mb-2">
-                                <input type="file" class="form-control visually-hidden" id="doc_complementaria" name="doc_complementaria" onchange="document.getElementById('label-doc-complementaria').innerText = this.files[0] ? this.files[0].name : (this.dataset.hasfile === 'true' ? 'Reemplazar archivo' : 'Seleccionar archivo')" data-hasfile="{{ 'true' if solicitud.doc_complementaria_file_id else 'false' }}">
+                            </div>                            <div class="input-group mb-2">
+                                <input type="file" class="form-control visually-hidden" id="doc_complementaria" name="doc_complementaria" 
+                                    onchange="handleComplementariaChange(this)" 
+                                    data-hasfile="{{ 'true' if solicitud.doc_complementaria_file_id else 'false' }}"
+                                    accept=".pdf">
                                 <button type="button" class="btn btn-secondary" onclick="document.getElementById('doc_complementaria').click()" id="label-doc-complementaria">
                                     {% if solicitud.doc_complementaria_file_id %}Reemplazar archivo{% else %}Seleccionar archivo{% endif %}
                                 </button>
                             </div>
                             {% if not solicitud.doc_complementaria_file_id %}
-                                <span class="text-muted">No hay documentación complementaria adjunta.</span>
+                                <span class="text-muted" id="no-doc-message">No hay documentación complementaria adjunta.</span>
                             {% endif %}
-                            <small class="form-text text-muted">
+                            <small class="form-text text-muted" id="doc-help-text">
                                 {% if solicitud.doc_complementaria_file_id %}
                                     Al subir un archivo, se reemplazará la documentación complementaria existente.
                                 {% else %}
                                     Puede adjuntar un archivo PDF.
                                 {% endif %}
                             </small>
+
+                            <script>                            function handleComplementariaChange(input) {
+                                const labelBtn = document.getElementById('label-doc-complementaria');
+                                const noDocMessage = document.getElementById('no-doc-message');
+                                const helpText = document.getElementById('doc-help-text');
+                                
+                                if (input.files[0]) {
+                                    labelBtn.innerText = input.files[0].name;
+                                    if (noDocMessage) noDocMessage.style.display = 'none';
+                                    if (input.dataset.hasfile === 'true') {
+                                        helpText.innerHTML = 'Al subir un archivo, se reemplazará la documentación complementaria existente.';
+                                    } else {
+                                        helpText.innerHTML = '';
+                                    }
+                                } else {
+                                    labelBtn.innerText = input.dataset.hasfile === 'true' ? 'Reemplazar archivo' : 'Seleccionar archivo';
+                                    if (noDocMessage) noDocMessage.style.display = '';
+                                    helpText.innerHTML = input.dataset.hasfile === 'true' ? 
+                                        'Al subir un archivo, se reemplazará la documentación complementaria existente.' :
+                                        'Puede adjuntar un archivo PDF.';
+                                }
+                            }
+                            </script>
                     </div>
                 </div>
             </div>
@@ -113,10 +144,8 @@
                             </div>
                             <div class="col-md-5">
                                 <div class="mb-3">
-                                    <label class="form-label">Asignatura de Destino</label>
-                                    <input type="text" class="form-control" name="dictamen_{{ dictamen.id }}_asignatura_destino" 
-                                           value="{{ dictamen.asignatura_destino }}" 
-                                           {% if dictamen.tipo_equivalencia == 'sin_equivalencia' %}disabled{% endif %}>
+                                    <label class="form-label">Asignatura de Destino</label>                                    <input type="text" class="form-control" name="dictamen_{{ dictamen.id }}_asignatura_destino" 
+                                           value="{{ dictamen.asignatura_destino }}">
                                     <small class="form-text text-muted">Asignatura del CRUB</small>
                                 </div>
                             </div>
@@ -161,6 +190,25 @@
     </div>
 </div>
 
+<!-- Modal de confirmación de eliminación de archivo -->
+<div class="modal fade" id="modalEliminarArchivo" tabindex="-1" aria-labelledby="modalEliminarArchivoLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalEliminarArchivoLabel">Confirmar eliminación</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <p id="mensaje-eliminar-archivo"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-danger" id="btn-confirmar-eliminacion">Eliminar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Modal para agregar asignatura -->
 <div class="modal fade" id="modalAgregarAsignatura" tabindex="-1">
     <div class="modal-dialog">
@@ -191,30 +239,92 @@
     </div>
 </div>
 
+<!-- Modal de confirmación de eliminación de dictamen -->
+<div class="modal fade" id="modalEliminarDictamen" tabindex="-1" aria-labelledby="modalEliminarDictamenLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalEliminarDictamenLabel">Confirmar eliminación</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <p>Está por eliminar este dictamen parcial, la operación no podrá deshacerse.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <form id="formEliminarDictamen" method="POST">
+          <button type="submit" class="btn btn-danger">Eliminar</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
 <script>
+// Variables del servidor
+var serverData = {
+    isAdmin: {% if current_user.rol == 'admin' %}true{% else %}false{% endif %},
+    estadoInicial: "{{ solicitud.estado }}",
+    solicitante: "{{ solicitud.nombre_solicitante }} {{ solicitud.apellido_solicitante }}",
+    solicitudId: {{ solicitud.id }}
+};
+
+// Función global para mostrar el modal de confirmación
+window.confirmarEliminarArchivo = function(solicitudId, tipo) {
+    const tipoArchivo = tipo === 'solicitud' ? 'la documentación del solicitante' : 'la documentación complementaria';
+    const modalEl = document.getElementById('modalEliminarArchivo');
+    
+    // Construir la URL manualmente
+    modalEl.dataset.deleteUrl = `/evaluadores/eliminar_archivo/${solicitudId}/${tipo}`;
+    
+    document.getElementById('mensaje-eliminar-archivo').textContent = 
+        "¿Confirma que desea eliminar " + tipoArchivo + "? Esta acción no se puede deshacer.";
+    
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+};
+
 document.addEventListener('DOMContentLoaded', function() {
+    // Manejador para eliminar archivos
+    const btnConfirmarEliminacion = document.getElementById('btn-confirmar-eliminacion');
+    if (btnConfirmarEliminacion) {
+        btnConfirmarEliminacion.addEventListener('click', function() {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalEliminarArchivo'));
+            modal.hide();
+
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = document.getElementById('modalEliminarArchivo').dataset.deleteUrl;
+            document.body.appendChild(form);
+            form.submit();
+        });
+    }
+
+    // Variables de estado
     const estadoSolicitudSelect = document.querySelector('select[name="estado_solicitud"]');
-    const estadoInicialSolicitud = '{{ solicitud.estado }}';
-    const nombreSolicitante = '{{ solicitud.nombre_solicitante }} {{ solicitud.apellido_solicitante }}';
-    const isAdmin = {{ 'true' if current_user.rol == 'admin' else 'false' }};
     
     // Manejar confirmación al guardar dictamen
     document.getElementById('guardarDictamen').addEventListener('click', function(e) {
         const estadoSeleccionado = estadoSolicitudSelect.value;
         
         // Solo mostrar confirmación si no es admin y se está cambiando de "en_evaluacion" a otro estado
-        if (!isAdmin && estadoInicialSolicitud === 'en_evaluacion' && estadoSeleccionado !== 'en_evaluacion') {
+        if (!serverData.isAdmin && 
+            serverData.estadoInicial === 'en_evaluacion' && 
+            estadoSeleccionado !== 'en_evaluacion') {
             e.preventDefault();
-            if (confirm(`Usted está cerrando la solicitud de equivalencia de ${nombreSolicitante} con estado "${estadoSeleccionado}". Ya no podrá modificar los dictámenes. ¿Desea continuar?`)) {
-                // Si confirma, enviar el formulario
+            if (confirm('Usted está cerrando la solicitud de equivalencia de ' + 
+                       serverData.solicitante + 
+                       ' con estado "' + estadoSeleccionado + 
+                       '". Ya no podrá modificar los dictámenes. ¿Desea continuar?')) {
                 e.target.closest('form').submit();
             }
         }
     });
     
+    // Función para validar dictámenes
     function validarDictamenes() {
         const dictamenes = document.querySelectorAll('select[name$="_tipo_equivalencia"]');
         const hayPendientes = Array.from(dictamenes).some(select => !select.value);
@@ -233,37 +343,26 @@ document.addEventListener('DOMContentLoaded', function() {
             opcionAprobada.disabled = false;
             opcionRechazada.disabled = false;
         }
-    }
-
-    // Manejar cambios en el tipo de equivalencia
-    document.querySelectorAll('select[name$="_tipo_equivalencia"]').forEach(select => {
-        select.addEventListener('change', function() {
-            const dictamenId = this.name.match(/dictamen_(\d+)_tipo_equivalencia/)[1];
-            const asignaturaDestino = document.querySelector(`input[name="dictamen_${dictamenId}_asignatura_destino"]`);
-            
-            if (this.value === 'sin_equivalencia') {
-                asignaturaDestino.disabled = true;
-                asignaturaDestino.value = '';
-            } else {
-                asignaturaDestino.disabled = false;
-            }
-            
-            // Validar dictámenes cada vez que cambie un estado
-            validarDictamenes();
+    }    // Solo validar dictámenes sin modificar campos
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('select[name$="_tipo_equivalencia"]').forEach(select => {
+            select.addEventListener('change', validarDictamenes);
         });
     });
-    
-    // Validar dictámenes al cargar la página
+
+    // Validación inicial
     validarDictamenes();
 
-    // Manejar eliminación de dictámenes
+    // Manejar botones de eliminar dictamen
     document.querySelectorAll('.remove-dictamen').forEach(button => {
         button.addEventListener('click', function() {
-            if (confirm('¿Está seguro de eliminar este dictamen?')) {
-                const dictamenId = this.dataset.id;
-                window.location.href = `{{ url_for('evaluadores.eliminar_dictamen', id=0) }}`.replace('0', dictamenId);
-            }
+            const dictamenId = this.dataset.id;
+            const modal = new bootstrap.Modal(document.getElementById('modalEliminarDictamen'));
+            const form = document.getElementById('formEliminarDictamen');
+            form.action = "{{ url_for('evaluadores.eliminar_dictamen', dictamen_id=0) }}".replace('0', dictamenId);
+            modal.show();
         });
     });
-});</script>
+});
+</script>
 {% endblock %}

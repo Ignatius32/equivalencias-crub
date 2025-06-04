@@ -15,6 +15,10 @@ instance/
 # Environment variables
 .env
 
+# Temporary uploads
+temp_uploads/
+app/static/uploads/
+
 # OS generated files
 .DS_Store
 .DS_Store?
