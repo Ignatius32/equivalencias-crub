@@ -23,7 +23,8 @@ def init_db():
         email="admin@crub.uncoma.edu.ar",
         nombre="Administrador",
         apellido="Sistema",
-        rol="admin"
+        rol="admin",
+        is_keycloak_user=False
     )
     admin.set_password("admin")
     db.session.add(admin)
@@ -35,7 +36,8 @@ def init_db():
         nombre="Departamento",
         apellido="Estudiantes",
         telefono="2944123456",
-        rol="depto_estudiantes"
+        rol="depto_estudiantes",
+        is_keycloak_user=False
     )
     depto.set_password("depto")
     db.session.add(depto)
@@ -49,7 +51,8 @@ def init_db():
         telefono="2944654321",
         rol="evaluador",
         legajo_evaluador="123456",
-        departamento_academico="Ingeniería"
+        departamento_academico="Ingeniería",
+        is_keycloak_user=False
     )
     evaluador.set_password("evaluador")
     db.session.add(evaluador)

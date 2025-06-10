@@ -1,8 +1,8 @@
-"""Migracion inicial
+"""Initial migration with Keycloak support
 
-Revision ID: 3bd59c8c6557
+Revision ID: 6b1a23229230
 Revises: 
-Create Date: 2025-05-27 10:18:23.387496
+Create Date: 2025-06-09 12:55:17.038620
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '3bd59c8c6557'
+revision = '6b1a23229230'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -22,15 +22,19 @@ def upgrade():
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('username', sa.String(length=64), nullable=False),
     sa.Column('email', sa.String(length=120), nullable=False),
-    sa.Column('password_hash', sa.String(length=128), nullable=False),
+    sa.Column('password_hash', sa.String(length=128), nullable=True),
     sa.Column('nombre', sa.String(length=64), nullable=False),
     sa.Column('apellido', sa.String(length=64), nullable=False),
     sa.Column('telefono', sa.String(length=20), nullable=True),
     sa.Column('rol', sa.String(length=20), nullable=False),
+    sa.Column('keycloak_id', sa.String(length=100), nullable=True),
+    sa.Column('is_keycloak_user', sa.Boolean(), nullable=True),
+    sa.Column('last_login', sa.DateTime(), nullable=True),
     sa.Column('legajo_evaluador', sa.String(length=20), nullable=True),
     sa.Column('departamento_academico', sa.String(length=100), nullable=True),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('email'),
+    sa.UniqueConstraint('keycloak_id'),
     sa.UniqueConstraint('legajo_evaluador'),
     sa.UniqueConstraint('username')
     )
@@ -52,6 +56,15 @@ def upgrade():
     sa.Column('evaluador_id', sa.Integer(), nullable=True),
     sa.Column('id_archivo_solicitud', sa.String(length=100), nullable=True),
     sa.Column('ruta_archivo', sa.String(length=255), nullable=True),
+    sa.Column('google_drive_file_id', sa.String(length=100), nullable=True),
+    sa.Column('google_drive_folder_id', sa.String(length=100), nullable=True),
+    sa.Column('google_drive_folder_name', sa.String(length=255), nullable=True),
+    sa.Column('google_drive_folder_url', sa.String(length=500), nullable=True),
+    sa.Column('dictamen_final_file_id', sa.String(length=100), nullable=True),
+    sa.Column('dictamen_final_url', sa.String(length=500), nullable=True),
+    sa.Column('firma_evaluador', sa.String(length=255), nullable=True),
+    sa.Column('doc_complementaria_file_id', sa.String(length=100), nullable=True),
+    sa.Column('doc_complementaria_url', sa.String(length=500), nullable=True),
     sa.ForeignKeyConstraint(['evaluador_id'], ['usuarios.id'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('id_solicitud')

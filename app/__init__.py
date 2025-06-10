@@ -1,7 +1,7 @@
 import os
-from flask import Flask
+from flask import Flask, session, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager
+from flask_login import LoginManager, current_user
 from flask_migrate import Migrate
 from dotenv import load_dotenv
 
@@ -25,12 +25,51 @@ def create_app():
     app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'temp_uploads')
     # Asegurar que la carpeta existe
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-    
-    # Inicializar extensiones con la app
+      # Inicializar extensiones con la app
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
+    login_manager.login_message = 'Por favor inicia sesión para acceder a esta página.'
+    login_manager.login_message_category = 'info'
+    
+    # Add token validation middleware if using Keycloak
+    if os.getenv('USE_KEYCLOAK', 'false').lower() == 'true':
+        @app.before_request
+        def validate_keycloak_token():
+            # Skip validation for auth routes
+            if request.endpoint and request.endpoint.startswith('auth'):
+                return
+                
+            if current_user.is_authenticated and hasattr(current_user, 'is_keycloak_user') and current_user.is_keycloak_user:
+                access_token = session.get('access_token')
+                if access_token:
+                    try:
+                        from app.services.keycloak_service import KeycloakService
+                        keycloak_service = KeycloakService()
+                        if not keycloak_service.validate_token(access_token):
+                            # Try to refresh token
+                            refresh_token = session.get('refresh_token')
+                            if refresh_token:
+                                new_token = keycloak_service.refresh_token(refresh_token)
+                                if new_token:
+                                    session['access_token'] = new_token['access_token']
+                                    session['refresh_token'] = new_token.get('refresh_token')
+                                else:
+                                    from flask_login import logout_user
+                                    logout_user()
+                                    flash('Su sesión ha expirado. Por favor, inicie sesión nuevamente.', 'warning')
+                                    return redirect(url_for('auth.login'))
+                            else:
+                                from flask_login import logout_user
+                                logout_user()
+                                flash('Su sesión ha expirado. Por favor, inicie sesión nuevamente.', 'warning')
+                                return redirect(url_for('auth.login'))
+                    except ImportError:
+                        pass  # Keycloak service not available
+    
+    # Import request here to avoid circular imports
+    from flask import request
     
     # Registrar blueprints
     from app.routes.auth import auth_bp

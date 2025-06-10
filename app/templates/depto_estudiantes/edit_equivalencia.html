@@ -107,17 +107,26 @@
                         });
                     });
                 </script>
-                    
-                    <div class="mb-3">
-                        <label for="evaluador_id" class="form-label">Evaluador Asignado</label>
+                      <div class="mb-3">
+                        <label for="evaluador_id" class="form-label">
+                            Evaluador Asignado
+                            <i class="fas fa-info-circle" data-bs-toggle="tooltip" title="Los evaluadores se muestran con su carga de trabajo actual"></i>
+                        </label>
                         <select class="form-select" id="evaluador_id" name="evaluador_id">
                             <option value="">-- Sin evaluador asignado --</option>
-                            {% for evaluador in evaluadores %}
+                            {% for item in evaluadores_with_workload %}
+                            {% set evaluador = item.evaluador %}
                             <option value="{{ evaluador.id }}" {% if solicitud.evaluador_id == evaluador.id %}selected{% endif %}>
-                                {{ evaluador.nombre }} {{ evaluador.apellido }} - {{ evaluador.departamento_academico }}
+                                {{ evaluador.nombre }} {{ evaluador.apellido }} 
+                                {% if evaluador.departamento_academico %}- {{ evaluador.departamento_academico }}{% endif %}
+                                ({{ item.workload }} activas, {{ item.total_assigned }} total)
+                                {% if evaluador.is_keycloak_user %}🔗{% endif %}
                             </option>
                             {% endfor %}
                         </select>
+                        <small class="form-text text-muted">
+                            🔗 = Sincronizado desde Keycloak. Números entre paréntesis indican carga de trabajo (solicitudes activas, total asignadas).
+                        </small>
                     </div>
                 </div>
                 

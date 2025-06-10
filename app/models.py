@@ -10,24 +10,72 @@ class Usuario(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128), nullable=False)
+    password_hash = db.Column(db.String(128), nullable=True)  # Make nullable for Keycloak users
     nombre = db.Column(db.String(64), nullable=False)
     apellido = db.Column(db.String(64), nullable=False)
     telefono = db.Column(db.String(20))
     rol = db.Column(db.String(20), nullable=False)  # 'admin', 'depto_estudiantes', 'evaluador'
     
+    # Keycloak integration fields
+    keycloak_id = db.Column(db.String(100), unique=True, nullable=True)  # Keycloak user ID
+    is_keycloak_user = db.Column(db.Boolean, default=False)  # Flag to identify Keycloak users
+    last_login = db.Column(db.DateTime, nullable=True)
+    
     # Campos específicos para evaluadores
     legajo_evaluador = db.Column(db.String(20), unique=True)
     departamento_academico = db.Column(db.String(100))
-    
-    # Relaciones
+      # Relaciones
     solicitudes_asignadas = db.relationship('SolicitudEquivalencia', back_populates='evaluador')
     
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
         
     def check_password(self, password):
+        if self.is_keycloak_user:
+            return False  # Keycloak users don't use local passwords
         return check_password_hash(self.password_hash, password)
+    
+    @classmethod
+    def create_or_update_from_keycloak(cls, keycloak_user, keycloak_id, app_role):
+        """Create or update user from Keycloak data"""
+        print(f"DEBUG: create_or_update_from_keycloak called with role: {app_role}")
+        user = cls.query.filter_by(keycloak_id=keycloak_id).first()
+        
+        if not user:
+            # Check if user exists by email
+            user = cls.query.filter_by(email=keycloak_user.get('email')).first()
+            if user:
+                # Update existing user with Keycloak data
+                print(f"DEBUG: Found existing user by email: {user.username}, current role: {user.rol}")
+                user.keycloak_id = keycloak_id
+                user.is_keycloak_user = True
+            else:
+                # Create new user
+                print(f"DEBUG: Creating new user with role: {app_role}")
+                user = cls(
+                    username=keycloak_user.get('preferred_username', keycloak_user.get('email')),
+                    email=keycloak_user.get('email'),
+                    nombre=keycloak_user.get('given_name', ''),
+                    apellido=keycloak_user.get('family_name', ''),
+                    rol=app_role,
+                    keycloak_id=keycloak_id,
+                    is_keycloak_user=True
+                )
+                db.session.add(user)
+        else:
+            print(f"DEBUG: Found existing user by keycloak_id: {user.username}, current role: {user.rol}")
+        
+        # Update user info (including role from Keycloak)
+        print(f"DEBUG: Updating user role from {user.rol} to {app_role}")
+        user.nombre = keycloak_user.get('given_name', user.nombre)
+        user.apellido = keycloak_user.get('family_name', user.apellido)
+        user.email = keycloak_user.get('email', user.email)
+        user.rol = app_role  # Always update role to match Keycloak
+        user.last_login = datetime.now()
+        
+        db.session.commit()
+        print(f"DEBUG: User saved with final role: {user.rol}")
+        return user
     
     def __repr__(self):
         return f'<Usuario {self.username} ({self.rol})>'

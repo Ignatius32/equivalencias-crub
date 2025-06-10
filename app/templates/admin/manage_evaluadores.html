@@ -1,0 +1,330 @@
+{% extends "base.html" %}
+{% block title %}Gestión de Evaluadores - Admin - Sistema de Equivalencias CRUB{% endblock %}
+
+{% block header %}Gestión de Evaluadores (Administrador){% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-users-cog"></i> Evaluadores y Carga de Trabajo</h5>
+                <div>
+                    <form method="POST" action="{{ url_for('admin.sync_evaluadores') }}" style="display: inline;">
+                        <button type="submit" class="btn btn-primary btn-sm" title="Sincronizar evaluadores desde Keycloak">
+                            <i class="fas fa-sync"></i> Sincronizar Keycloak
+                        </button>
+                    </form>
+                    <a href="{{ url_for('admin.new_usuario') }}" class="btn btn-success btn-sm ms-2">
+                        <i class="fas fa-plus"></i> Crear Usuario
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if evaluadores_with_workload %}
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Evaluador</th>
+                                <th>Departamento</th>
+                                <th>Solicitudes Activas</th>
+                                <th>Total Asignadas</th>
+                                <th>Estado</th>
+                                <th>Origen</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in evaluadores_with_workload %}
+                            <tr>
+                                <td>
+                                    <strong>{{ item.evaluador.nombre }} {{ item.evaluador.apellido }}</strong>
+                                    <br>
+                                    <small class="text-muted">{{ item.evaluador.email }}</small>
+                                    {% if item.evaluador.legajo_evaluador %}
+                                    <br><small class="text-info">Legajo: {{ item.evaluador.legajo_evaluador }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if item.evaluador.departamento_academico %}
+                                        {{ item.evaluador.departamento_academico }}
+                                    {% else %}
+                                        <span class="text-muted">No especificado</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge {% if item.workload == 0 %}bg-success{% elif item.workload <= 3 %}bg-warning{% else %}bg-danger{% endif %}">
+                                        {{ item.workload }}
+                                    </span>
+                                </td>
+                                <td>{{ item.total_assigned }}</td>
+                                <td>
+                                    {% if item.workload == 0 %}
+                                        <span class="badge bg-success">Disponible</span>
+                                    {% elif item.workload <= 3 %}
+                                        <span class="badge bg-warning">Carga Media</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Carga Alta</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if item.evaluador.is_keycloak_user %}
+                                        <span class="badge bg-info">Keycloak</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Local</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('admin.edit_usuario', id=item.evaluador.id) }}" class="btn btn-outline-primary" title="Editar">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        {% if item.workload > 0 %}
+                                        <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#viewAssignmentsModal{{ item.evaluador.id }}" title="Ver asignaciones">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    No hay evaluadores disponibles. Haga clic en "Sincronizar Keycloak" para cargar evaluadores.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-chart-pie"></i> Estadísticas Generales</h6>
+            </div>
+            <div class="card-body">
+                {% if evaluadores_with_workload %}
+                <div class="row text-center">
+                    <div class="col-12 mb-3">
+                        <h4 class="text-primary">{{ evaluadores_with_workload|length }}</h4>
+                        <small class="text-muted">Evaluadores Totales</small>
+                    </div>
+                    <div class="col-6 mb-2">
+                        <h5 class="text-success">{{ evaluadores_with_workload|selectattr('workload', 'equalto', 0)|list|length }}</h5>
+                        <small class="text-muted">Disponibles</small>
+                    </div>
+                    <div class="col-6 mb-2">
+                        <h5 class="text-warning">{{ unassigned_solicitudes|length }}</h5>
+                        <small class="text-muted">Sin Asignar</small>
+                    </div>
+                    <div class="col-6">
+                        <h5 class="text-info">{{ evaluadores_with_workload|selectattr('evaluador.is_keycloak_user', 'equalto', true)|list|length }}</h5>
+                        <small class="text-muted">Keycloak</small>
+                    </div>
+                    <div class="col-6">
+                        <h5 class="text-secondary">{{ evaluadores_with_workload|selectattr('evaluador.is_keycloak_user', 'equalto', false)|list|length }}</h5>
+                        <small class="text-muted">Locales</small>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-tasks"></i> Distribución de Carga</h6>
+            </div>
+            <div class="card-body">
+                {% if evaluadores_with_workload %}
+                {% set total_workload = evaluadores_with_workload|sum(attribute='workload') %}
+                {% if total_workload > 0 %}
+                {% set avg_workload = (total_workload / evaluadores_with_workload|length)|round(1) %}
+                <p><strong>Carga Promedio:</strong> {{ avg_workload }} solicitudes</p>
+                <div class="progress mb-2">
+                    <div class="progress-bar bg-success" style="width: {{ (evaluadores_with_workload|selectattr('workload', 'equalto', 0)|list|length / evaluadores_with_workload|length * 100)|round(1) }}%"></div>
+                    <div class="progress-bar bg-warning" style="width: {{ (evaluadores_with_workload|selectattr('workload', 'le', 3)|selectattr('workload', 'gt', 0)|list|length / evaluadores_with_workload|length * 100)|round(1) }}%"></div>
+                    <div class="progress-bar bg-danger" style="width: {{ (evaluadores_with_workload|selectattr('workload', 'gt', 3)|list|length / evaluadores_with_workload|length * 100)|round(1) }}%"></div>
+                </div>
+                <small class="text-muted">
+                    <span class="badge bg-success">Disponible</span>
+                    <span class="badge bg-warning">Media</span>
+                    <span class="badge bg-danger">Alta</span>
+                </small>
+                {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if unassigned_solicitudes %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-clipboard-list"></i> Solicitudes Sin Evaluador Asignado</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>ID Solicitud</th>
+                        <th>Solicitante</th>
+                        <th>Carrera Destino</th>
+                        <th>Fecha</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for solicitud in unassigned_solicitudes %}
+                    <tr>
+                        <td>{{ solicitud.id_solicitud }}</td>
+                        <td>{{ solicitud.nombre_solicitante }} {{ solicitud.apellido_solicitante }}</td>
+                        <td>{{ solicitud.carrera_crub_destino }}</td>
+                        <td>{{ solicitud.fecha_solicitud.strftime('%d/%m/%Y') }}</td>
+                        <td>
+                            <span class="badge {% if solicitud.estado == 'pendiente' %}bg-warning text-dark{% else %}bg-info{% endif %}">
+                                {{ solicitud.estado|title }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#assignModal{{ solicitud.id }}" title="Asignar Evaluador">
+                                    <i class="fas fa-user-plus"></i>
+                                </button>
+                                <a href="{{ url_for('depto.edit_equivalencia', id=solicitud.id) }}" class="btn btn-outline-secondary" title="Ver/Editar">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    
+                    <!-- Modal para asignar evaluador -->
+                    <div class="modal fade" id="assignModal{{ solicitud.id }}" tabindex="-1">
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Asignar Evaluador - {{ solicitud.id_solicitud }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form method="POST" action="{{ url_for('admin.assign_evaluador') }}">
+                                    <input type="hidden" name="solicitud_id" value="{{ solicitud.id }}">
+                                    <div class="modal-body">
+                                        <div class="row mb-3">
+                                            <div class="col-md-6">
+                                                <strong>Solicitante:</strong> {{ solicitud.nombre_solicitante }} {{ solicitud.apellido_solicitante }}
+                                            </div>
+                                            <div class="col-md-6">
+                                                <strong>Carrera:</strong> {{ solicitud.carrera_crub_destino }}
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="evaluador_id" class="form-label">Seleccionar Evaluador</label>
+                                            <select class="form-select" name="evaluador_id" required>
+                                                <option value="" disabled selected>-- Seleccione un evaluador --</option>
+                                                {% for item in evaluadores_with_workload %}
+                                                <option value="{{ item.evaluador.id }}">
+                                                    {{ item.evaluador.nombre }} {{ item.evaluador.apellido }} 
+                                                    ({{ item.workload }} activas)
+                                                    {% if item.evaluador.departamento_academico %} - {{ item.evaluador.departamento_academico }}{% endif %}
+                                                    {% if item.evaluador.is_keycloak_user %} [KC]{% endif %}
+                                                </option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="alert alert-info">
+                                            <small><i class="fas fa-info-circle"></i> Los evaluadores con menor carga aparecen primero. [KC] indica usuarios de Keycloak.</small>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                        <button type="submit" class="btn btn-primary">Asignar Evaluador</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Modals para ver asignaciones de cada evaluador -->
+{% for item in evaluadores_with_workload %}
+{% if item.workload > 0 %}
+<div class="modal fade" id="viewAssignmentsModal{{ item.evaluador.id }}" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Asignaciones - {{ item.evaluador.nombre }} {{ item.evaluador.apellido }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>ID Solicitud</th>
+                                <th>Solicitante</th>
+                                <th>Estado</th>
+                                <th>Fecha</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for solicitud in all_solicitudes %}
+                            {% if solicitud.evaluador_id == item.evaluador.id %}
+                            <tr>
+                                <td>{{ solicitud.id_solicitud }}</td>
+                                <td>{{ solicitud.nombre_solicitante }} {{ solicitud.apellido_solicitante }}</td>
+                                <td>
+                                    <span class="badge {% if solicitud.estado == 'pendiente' %}bg-warning text-dark{% elif solicitud.estado == 'en_evaluacion' %}bg-info{% elif solicitud.estado == 'aprobada' %}bg-success{% else %}bg-danger{% endif %}">
+                                        {{ solicitud.estado|title }}
+                                    </span>
+                                </td>
+                                <td>{{ solicitud.fecha_solicitud.strftime('%d/%m/%Y') }}</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('depto.view_equivalencia', id=solicitud.id) }}" class="btn btn-outline-primary btn-sm" title="Ver">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        {% if solicitud.estado in ['pendiente', 'en_evaluacion'] %}
+                                        <form method="POST" action="{{ url_for('admin.assign_evaluador') }}" style="display: inline;">
+                                            <input type="hidden" name="solicitud_id" value="{{ solicitud.id }}">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm" title="Desasignar" onclick="return confirm('¿Desasignar evaluador de esta solicitud?')">
+                                                <i class="fas fa-user-times"></i>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+
+<div class="mt-4">
+    <a href="{{ url_for('admin.index') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Volver al Dashboard
+    </a>
+    <a href="{{ url_for('admin.list_usuarios') }}" class="btn btn-outline-secondary ms-2">
+        <i class="fas fa-users"></i> Gestionar Usuarios
+    </a>
+</div>
+{% endblock %}

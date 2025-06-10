@@ -3,6 +3,7 @@ from flask_login import login_required, current_user
 from app.models import Usuario, SolicitudEquivalencia
 from app import db
 from app.services.google_drive_service import GoogleDriveService
+from app.services.evaluador_service import EvaluadorService
 from functools import wraps
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
@@ -21,103 +22,79 @@ def admin_required(f):
 @login_required
 @admin_required
 def index():
-    return render_template('admin/index.html')
+    # Get solicitudes statistics
+    total_solicitudes = SolicitudEquivalencia.query.count()
+    solicitudes_pendientes = SolicitudEquivalencia.query.filter_by(estado='en_evaluacion').count()
+    solicitudes_aprobadas = SolicitudEquivalencia.query.filter_by(estado='aprobada').count()
+    solicitudes_rechazadas = SolicitudEquivalencia.query.filter_by(estado='rechazada').count()
+    
+    return render_template('admin/index.html',
+                           total_solicitudes=total_solicitudes,
+                           solicitudes_pendientes=solicitudes_pendientes,
+                           solicitudes_aprobadas=solicitudes_aprobadas,
+                           solicitudes_rechazadas=solicitudes_rechazadas)
 
 @admin_bp.route('/usuarios', methods=['GET'])
 @login_required
 @admin_required
 def list_usuarios():
+    """View all users in the system (read-only, managed via Keycloak)"""
     usuarios = Usuario.query.all()
-    return render_template('admin/list_usuarios.html', usuarios=usuarios)
+    evaluador_service = EvaluadorService()
+    stats = evaluador_service.get_evaluadores_stats()
+    
+    # Add message about Keycloak management
+    flash('Los usuarios se gestionan exclusivamente a través de Keycloak. Esta vista es solo informativa. Use "Gestión de Evaluadores" para sincronizar usuarios desde Keycloak.', 'info')
+    
+    return render_template('admin/list_usuarios.html', usuarios=usuarios, readonly=True, stats=stats)
 
-@admin_bp.route('/usuarios/nuevo', methods=['GET', 'POST'])
+# USER MANAGEMENT IS HANDLED BY KEYCLOAK - THESE ROUTES ARE DISABLED
+# Users should be created and managed in Keycloak, not in this application
+
+# @admin_bp.route('/usuarios/nuevo', methods=['GET', 'POST'])
+# @login_required
+# @admin_required
+# def new_usuario():
+#     # This functionality is now handled by Keycloak
+#     flash('La creación de usuarios se maneja exclusivamente a través de Keycloak', 'warning')
+#     return redirect(url_for('admin.list_usuarios'))
+
+# @admin_bp.route('/usuarios/editar/<int:id>', methods=['GET', 'POST'])
+# @login_required
+# @admin_required
+# def edit_usuario(id):
+#     # This functionality is now handled by Keycloak
+#     flash('La edición de usuarios se maneja exclusivamente a través de Keycloak', 'warning')
+#     return redirect(url_for('admin.list_usuarios'))
+
+# @admin_bp.route('/usuarios/eliminar/<int:id>')
+# @login_required
+# @admin_required  
+# def delete_usuario(id):
+#     # This functionality is now handled by Keycloak
+#     flash('La eliminación de usuarios se maneja exclusivamente a través de Keycloak', 'warning')
+#     return redirect(url_for('admin.list_usuarios'))
+
+@admin_bp.route('/evaluadores')
 @login_required
 @admin_required
-def new_usuario():
-    if request.method == 'POST':
-        username = request.form.get('username')
-        email = request.form.get('email')
-        nombre = request.form.get('nombre')
-        apellido = request.form.get('apellido')
-        telefono = request.form.get('telefono')
-        rol = request.form.get('rol')
-        password = request.form.get('password')
-        
-        # Campos específicos para evaluadores
-        legajo_evaluador = request.form.get('legajo_evaluador') if rol == 'evaluador' else None
-        departamento_academico = request.form.get('departamento_academico') if rol == 'evaluador' else None
-        
-        # Verificar si el usuario ya existe
-        if Usuario.query.filter_by(username=username).first() or Usuario.query.filter_by(email=email).first():
-            flash('El nombre de usuario o email ya está en uso', 'danger')
-            return render_template('admin/new_usuario.html')
-            
-        # Crear nuevo usuario
-        usuario = Usuario(
-            username=username,
-            email=email,
-            nombre=nombre,
-            apellido=apellido,
-            telefono=telefono,
-            rol=rol,
-            legajo_evaluador=legajo_evaluador,
-            departamento_academico=departamento_academico
-        )
-        usuario.set_password(password)
-        
-        db.session.add(usuario)
-        db.session.commit()
-        
-        flash(f'Usuario {username} creado correctamente', 'success')
-        return redirect(url_for('admin.list_usuarios'))
-        
-    return render_template('admin/new_usuario.html')
-
-@admin_bp.route('/usuarios/editar/<int:id>', methods=['GET', 'POST'])
-@login_required
-@admin_required
-def edit_usuario(id):
-    usuario = Usuario.query.get_or_404(id)
+def list_evaluadores():
+    """List all evaluadores from Keycloak with their workload information"""
+    evaluador_service = EvaluadorService()
     
-    if request.method == 'POST':
-        usuario.username = request.form.get('username')
-        usuario.email = request.form.get('email')
-        usuario.nombre = request.form.get('nombre')
-        usuario.apellido = request.form.get('apellido')
-        usuario.telefono = request.form.get('telefono')
-        usuario.rol = request.form.get('rol')
-        
-        # Actualizar contraseña si se proporciona una nueva
-        new_password = request.form.get('password')
-        if new_password:
-            usuario.set_password(new_password)
-            
-        # Campos específicos para evaluadores
-        if usuario.rol == 'evaluador':
-            usuario.legajo_evaluador = request.form.get('legajo_evaluador')
-            usuario.departamento_academico = request.form.get('departamento_academico')
-        
-        db.session.commit()
-        flash('Usuario actualizado correctamente', 'success')
-        return redirect(url_for('admin.list_usuarios'))
-        
-    return render_template('admin/edit_usuario.html', usuario=usuario)
-
-@admin_bp.route('/usuarios/eliminar/<int:id>')
-@login_required
-@admin_required
-def delete_usuario(id):
-    usuario = Usuario.query.get_or_404(id)
+    # Ensure fresh data from Keycloak
+    evaluadores_with_workload = evaluador_service.get_evaluadores_for_selection()
+    stats = evaluador_service.get_evaluadores_stats()
     
-    if usuario.username == 'admin':
-        flash('No se puede eliminar el usuario administrador', 'danger')
-        return redirect(url_for('admin.list_usuarios'))
+    # Add info message about data source
+    if evaluador_service.is_keycloak_enabled():
+        flash(f'Mostrando {len(evaluadores_with_workload)} evaluadores sincronizados desde Keycloak.', 'info')
+    else:
+        flash('Keycloak no está configurado. Mostrando evaluadores locales únicamente.', 'warning')
     
-    db.session.delete(usuario)
-    db.session.commit()
-    
-    flash('Usuario eliminado correctamente', 'success')
-    return redirect(url_for('admin.list_usuarios'))
+    return render_template('admin/list_evaluadores.html', 
+                         evaluadores_with_workload=evaluadores_with_workload,
+                         stats=stats)
 
 @admin_bp.route('/dashboard')
 @login_required
@@ -174,3 +151,102 @@ def debug_google_drive():
             'success': False,
             'error': f'Error en debug: {str(e)}'
         })
+
+@admin_bp.route('/manage_evaluadores')
+@login_required
+@admin_required
+def manage_evaluadores():
+    """Admin view for managing evaluator assignments and workload"""
+    evaluador_service = EvaluadorService()
+    
+    # Ensure we have fresh evaluador data from Keycloak
+    evaluadores_with_workload = evaluador_service.get_evaluadores_for_selection()
+    
+    # Get all solicitudes with their evaluator assignments
+    solicitudes = SolicitudEquivalencia.query.all()
+    
+    # Get unassigned solicitudes
+    unassigned_solicitudes = SolicitudEquivalencia.query.filter(
+        SolicitudEquivalencia.evaluador_id.is_(None),
+        SolicitudEquivalencia.estado.in_(['pendiente', 'en_evaluacion'])
+    ).all()
+    
+    # Add info flash if Keycloak is enabled
+    if evaluador_service.is_keycloak_enabled():
+        flash('Los evaluadores se sincronizan automáticamente desde Keycloak. Lista actualizada.', 'info')
+    
+    return render_template('admin/manage_evaluadores.html', 
+                         evaluadores_with_workload=evaluadores_with_workload,
+                         unassigned_solicitudes=unassigned_solicitudes,
+                         all_solicitudes=solicitudes)
+
+@admin_bp.route('/assign_evaluador', methods=['POST'])
+@login_required
+@admin_required
+def assign_evaluador():
+    """Admin endpoint to assign evaluator to solicitud"""
+    evaluador_service = EvaluadorService()
+    solicitud_id = request.form.get('solicitud_id')
+    evaluador_id = request.form.get('evaluador_id')
+    
+    if not solicitud_id:
+        flash('ID de solicitud requerido', 'danger')
+        return redirect(url_for('admin.manage_evaluadores'))
+    
+    if evaluador_id:
+        success, message = evaluador_service.assign_evaluador_to_solicitud(solicitud_id, evaluador_id)
+        if success:
+            flash(message, 'success')
+        else:
+            flash(message, 'danger')
+    else:
+        success, message = evaluador_service.unassign_evaluador_from_solicitud(solicitud_id)
+        if success:
+            flash(message, 'info')
+        else:
+            flash(message, 'danger')
+    
+    return redirect(url_for('admin.manage_evaluadores'))
+
+@admin_bp.route('/sync_evaluadores', methods=['POST'])
+@login_required
+@admin_required 
+def sync_evaluadores():
+    """Admin endpoint to sync evaluadores from Keycloak"""
+    evaluador_service = EvaluadorService()
+    
+    if evaluador_service.is_keycloak_enabled():
+        try:
+            force_sync = request.form.get('force') == 'true'
+            if force_sync:
+                evaluadores = evaluador_service.force_sync_evaluadores()
+                flash(f'Sincronización forzada completada: {len(evaluadores)} evaluadores', 'success')
+            else:
+                evaluadores = evaluador_service.keycloak_service.sync_all_evaluadores()
+                flash(f'Sincronizados {len(evaluadores)} evaluadores desde Keycloak', 'success')
+        except Exception as e:
+            flash(f'Error al sincronizar evaluadores: {str(e)}', 'danger')
+    else:
+        flash('Keycloak no está habilitado', 'warning')
+    
+    return redirect(url_for('admin.manage_evaluadores'))
+
+@admin_bp.route('/refresh_evaluadores', methods=['POST'])
+@login_required
+@admin_required
+def refresh_evaluadores():
+    """Manually refresh evaluadores from Keycloak"""
+    evaluador_service = EvaluadorService()
+    
+    if evaluador_service.is_keycloak_enabled():
+        try:
+            # Force refresh from Keycloak
+            evaluadores = evaluador_service.ensure_fresh_evaluadores()
+            flash(f'Lista de evaluadores actualizada: {len(evaluadores)} evaluadores disponibles desde Keycloak.', 'success')
+        except Exception as e:
+            flash(f'Error al actualizar evaluadores desde Keycloak: {str(e)}', 'danger')
+    else:
+        flash('Keycloak no está configurado. No se puede actualizar desde el servidor de autenticación.', 'warning')
+    
+    # Redirect back to the referring page or default to manage_evaluadores
+    return redirect(request.referrer or url_for('admin.manage_evaluadores'))

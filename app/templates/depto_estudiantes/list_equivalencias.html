@@ -4,12 +4,46 @@
 {% block header %}Solicitudes de Equivalencias{% endblock %}
 
 {% block content %}
-<div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0"><i class="fas fa-file-alt"></i> Solicitudes de Equivalencias</h5>
-        <a href="{{ url_for('depto.new_equivalencia') }}" class="btn btn-primary">
-            <i class="fas fa-plus"></i> Nueva Solicitud
-        </a>
+<div class="card">    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0"><i class="fas fa-file-alt"></i> Solicitudes de Equivalencias</h5>
+            <a href="{{ url_for('depto.new_equivalencia') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Nueva Solicitud
+            </a>
+        </div>
+        
+        <!-- Filter Section -->
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <form method="GET" action="{{ url_for('depto.list_equivalencias') }}" class="d-flex align-items-center gap-2">
+                    <label for="estado" class="form-label mb-0 me-2">Filtrar por estado:</label>
+                    <select class="form-select form-select-sm" id="estado" name="estado" onchange="this.form.submit()" style="width: auto;">
+                        <option value="">Todos los estados</option>
+                        <option value="en_evaluacion" {% if estado_filter == 'en_evaluacion' %}selected{% endif %}>En Evaluación</option>
+                        <option value="aprobada" {% if estado_filter == 'aprobada' %}selected{% endif %}>Aprobadas</option>
+                        <option value="rechazada" {% if estado_filter == 'rechazada' %}selected{% endif %}>Rechazadas</option>
+                    </select>
+                    {% if estado_filter %}
+                    <a href="{{ url_for('depto.list_equivalencias') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-times"></i> Limpiar
+                    </a>
+                    {% endif %}
+                </form>
+            </div>
+            <div class="col-md-6 text-end">
+                <small class="text-muted">
+                    Mostrando {{ solicitudes|length }} 
+                    {% if estado_filter %}
+                        {% if estado_filter == 'en_evaluacion' %}solicitudes en evaluación
+                        {% elif estado_filter == 'aprobada' %}solicitudes aprobadas
+                        {% elif estado_filter == 'rechazada' %}solicitudes rechazadas
+                        {% else %}solicitudes filtradas{% endif %}
+                    {% else %}
+                        solicitudes en total
+                    {% endif %}
+                </small>
+            </div>
+        </div>
     </div>
     <div class="card-body">
         <div class="table-responsive">
@@ -105,17 +139,26 @@
                                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                 </div>
                                 <form action="{{ url_for('depto.asignar_evaluador', solicitud_id=solicitud.id) }}" method="post">
-                                    <div class="modal-body">
-                                        <div class="mb-3">
-                                            <label for="evaluador_id" class="form-label">Seleccionar Evaluador</label>
+                                    <div class="modal-body">                                        <div class="mb-3">
+                                            <label for="evaluador_id" class="form-label">
+                                                Seleccionar Evaluador
+                                                <i class="fas fa-info-circle" data-bs-toggle="tooltip" title="Los evaluadores se muestran con su carga de trabajo actual"></i>
+                                            </label>
                                             <select class="form-select" id="evaluador_id" name="evaluador_id" required>
                                                 <option value="" selected disabled>-- Seleccione un evaluador --</option>
-                                                {% for evaluador in evaluadores %}
+                                                {% for item in evaluadores_with_workload %}
+                                                {% set evaluador = item.evaluador %}
                                                 <option value="{{ evaluador.id }}">
-                                                    {{ evaluador.nombre }} {{ evaluador.apellido }} - {{ evaluador.departamento_academico }}
+                                                    {{ evaluador.nombre }} {{ evaluador.apellido }} 
+                                                    {% if evaluador.departamento_academico %}- {{ evaluador.departamento_academico }}{% endif %}
+                                                    ({{ item.workload }} activas, {{ item.total_assigned }} total)
+                                                    {% if evaluador.is_keycloak_user %}🔗{% endif %}
                                                 </option>
                                                 {% endfor %}
                                             </select>
+                                            <small class="form-text text-muted">
+                                                🔗 = Sincronizado desde Keycloak. Números entre paréntesis indican carga de trabajo.
+                                            </small>
                                         </div>
                                     </div>
                                     <div class="modal-footer">

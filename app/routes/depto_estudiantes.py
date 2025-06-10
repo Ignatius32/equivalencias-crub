@@ -4,6 +4,7 @@ from app.models import Usuario, SolicitudEquivalencia, Dictamen
 from app import db
 from app.services.google_drive_service import GoogleDriveService
 from app.services.dictamen_service import DictamenService
+from app.services.evaluador_service import EvaluadorService
 from functools import wraps
 from datetime import datetime
 import uuid
@@ -34,16 +35,48 @@ def index():
 @login_required
 @depto_required
 def list_equivalencias():
-    solicitudes = SolicitudEquivalencia.query.all()
-    evaluadores = Usuario.query.filter_by(rol='evaluador').all()
+    # Get filter parameter from URL
+    estado_filter = request.args.get('estado')
+    
+    # Build query based on filter
+    query = SolicitudEquivalencia.query
+    if estado_filter:
+        query = query.filter_by(estado=estado_filter)
+    
+    solicitudes = query.all()
+    evaluador_service = EvaluadorService()
+    
+    # Ensure fresh evaluador data for assignments
+    evaluadores_with_workload = evaluador_service.get_evaluadores_for_selection()
+    
+    # Add info message about evaluador data source
+    if evaluador_service.is_keycloak_enabled():
+        flash('Lista de evaluadores actualizada desde Keycloak.', 'info')
+    
+    # Add filter info message
+    if estado_filter:
+        estado_display = {
+            'en_evaluacion': 'En Evaluación',
+            'aprobada': 'Aprobadas',
+            'rechazada': 'Rechazadas'
+        }.get(estado_filter, estado_filter)
+        flash(f'Mostrando solicitudes: {estado_display}', 'info')
+    
     from flask_login import current_user
-    return render_template('depto_estudiantes/list_equivalencias.html', solicitudes=solicitudes, evaluadores=evaluadores, current_user=current_user)
+    return render_template('depto_estudiantes/list_equivalencias.html', 
+                         solicitudes=solicitudes, 
+                         evaluadores_with_workload=evaluadores_with_workload, 
+                         current_user=current_user,
+                         estado_filter=estado_filter)
 
 @depto_bp.route('/equivalencias/nueva', methods=['GET', 'POST'])
 @login_required
 @depto_required
 def new_equivalencia():
-    evaluadores = Usuario.query.filter_by(rol='evaluador').all()
+    evaluador_service = EvaluadorService()
+    
+    # Ensure fresh evaluador data for selection
+    evaluadores_with_workload = evaluador_service.get_evaluadores_for_selection()
     
     if request.method == 'POST':
         # Generar ID único para la solicitud
@@ -190,14 +223,15 @@ def new_equivalencia():
         flash('Solicitud de equivalencia creada correctamente', 'success')
         return redirect(url_for('depto.list_equivalencias'))
     
-    return render_template('depto_estudiantes/new_equivalencia.html', evaluadores=evaluadores)
+    return render_template('depto_estudiantes/new_equivalencia.html', evaluadores_with_workload=evaluadores_with_workload)
 
 @depto_bp.route('/equivalencias/editar/<int:id>', methods=['GET', 'POST'])
 @login_required
 @depto_required
 def edit_equivalencia(id):
     solicitud = SolicitudEquivalencia.query.get_or_404(id)
-    evaluadores = Usuario.query.filter_by(rol='evaluador').all()
+    evaluador_service = EvaluadorService()
+    evaluadores_with_workload = evaluador_service.get_evaluadores_with_workload()
     
     if request.method == 'POST':
         # Actualizar datos básicos de la solicitud
@@ -342,7 +376,7 @@ def edit_equivalencia(id):
     
     return render_template('depto_estudiantes/edit_equivalencia.html', 
                          solicitud=solicitud, 
-                         evaluadores=evaluadores)
+                         evaluadores_with_workload=evaluadores_with_workload)
 
 @depto_bp.route('/equivalencias/eliminar/<int:id>')
 @login_required
@@ -386,40 +420,71 @@ def delete_equivalencia(id):
 @login_required
 @depto_required
 def manage_evaluadores():
-    evaluadores = Usuario.query.filter_by(rol='evaluador').all()
-    return render_template('depto_estudiantes/manage_evaluadores.html', evaluadores=evaluadores)
+    evaluador_service = EvaluadorService()
+    evaluadores_with_workload = evaluador_service.get_evaluadores_with_workload()
+    
+    # Get unassigned solicitudes
+    unassigned_solicitudes = SolicitudEquivalencia.query.filter(
+        SolicitudEquivalencia.evaluador_id.is_(None),
+        SolicitudEquivalencia.estado.in_(['pendiente', 'en_evaluacion'])
+    ).all()
+    
+    return render_template('depto_estudiantes/manage_evaluadores.html', 
+                         evaluadores_with_workload=evaluadores_with_workload,
+                         unassigned_solicitudes=unassigned_solicitudes)
 
-@depto_bp.route('/asignar_evaluador/<int:solicitud_id>', methods=['POST'])
+@depto_bp.route('/sync_evaluadores', methods=['POST'])
 @login_required
 @depto_required
-def asignar_evaluador(solicitud_id):
-    solicitud = SolicitudEquivalencia.query.get_or_404(solicitud_id)
-    evaluador_id = request.form.get('evaluador_id')
+def sync_evaluadores():
+    """Sync evaluadores from Keycloak"""
+    evaluador_service = EvaluadorService()
     
-    if evaluador_id:
-        evaluador = Usuario.query.filter_by(id=evaluador_id, rol='evaluador').first()
-        if evaluador:
-            solicitud.evaluador_id = evaluador.id
-            db.session.commit()
-            flash(f'Evaluador {evaluador.nombre} {evaluador.apellido} asignado correctamente', 'success')
-        else:
-            flash('Evaluador no encontrado', 'danger')
+    if evaluador_service.is_keycloak_enabled():
+        try:
+            force_sync = request.form.get('force') == 'true'
+            if force_sync:
+                evaluadores = evaluador_service.force_sync_evaluadores()
+                flash(f'Sincronización forzada completada: {len(evaluadores)} evaluadores', 'success')
+            else:
+                evaluadores = evaluador_service.keycloak_service.sync_all_evaluadores()
+                flash(f'Sincronizados {len(evaluadores)} evaluadores desde Keycloak', 'success')
+        except Exception as e:
+            flash(f'Error al sincronizar evaluadores: {str(e)}', 'danger')
     else:
-        solicitud.evaluador_id = None
-        db.session.commit()
-        flash('Solicitud sin evaluador asignado', 'info')
+        flash('Keycloak no está habilitado', 'warning')
     
-    return redirect(url_for('depto.list_equivalencias'))
+    return redirect(url_for('depto.manage_evaluadores'))
+
+@depto_bp.route('/auto_assign_evaluador/<int:solicitud_id>', methods=['POST'])
+@login_required
+@depto_required
+def auto_assign_evaluador(solicitud_id):
+    """Auto-assign evaluator with least workload to solicitud"""
+    evaluador_service = EvaluadorService()
+    
+    suggested_evaluador = evaluador_service.suggest_evaluador()
+    if suggested_evaluador:
+        success, message = evaluador_service.assign_evaluador_to_solicitud(solicitud_id, suggested_evaluador.id)
+        if success:
+            flash(f'Asignado automáticamente a {suggested_evaluador.nombre} {suggested_evaluador.apellido}', 'success')
+        else:
+            flash(message, 'danger')
+    else:
+        flash('No hay evaluadores disponibles para asignación automática', 'warning')
+    
+    return redirect(url_for('depto.manage_evaluadores'))
 
 @depto_bp.route('/equivalencias/ver/<int:id>')
 @login_required
 @depto_required
 def view_equivalencia(id):
     solicitud = SolicitudEquivalencia.query.get_or_404(id)
-    evaluadores = Usuario.query.filter_by(rol='evaluador').all()
+    evaluador_service = EvaluadorService()
+    evaluadores_with_workload = evaluador_service.get_evaluadores_with_workload()
     return render_template('depto_estudiantes/view_equivalencia.html', 
                          solicitud=solicitud,
-                         evaluadores=evaluadores)
+                         evaluadores_with_workload=evaluadores_with_workload)
 
 @depto_bp.route('/equivalencias/eliminar_archivo/<int:solicitud_id>/<tipo>', methods=['POST'])
 @login_required
@@ -464,6 +529,42 @@ def eliminar_archivo(solicitud_id, tipo):
         flash(f'Error al eliminar el archivo: {str(e)}', 'danger')
 
     return redirect(url_for('depto.edit_equivalencia', id=solicitud_id))
+
+@depto_bp.route('/asignar_evaluador/<int:solicitud_id>', methods=['POST'])
+@login_required
+@depto_required
+def asignar_evaluador(solicitud_id):
+    """Manually assign an evaluator to a solicitud"""
+    evaluador_id = request.form.get('evaluador_id')
+    
+    if not evaluador_id:
+        flash('Debe seleccionar un evaluador', 'danger')
+        return redirect(url_for('depto.list_equivalencias'))
+    
+    evaluador_service = EvaluadorService()
+    success, message = evaluador_service.assign_evaluador_to_solicitud(solicitud_id, int(evaluador_id))
+    
+    if success:
+        flash(message, 'success')
+    else:
+        flash(message, 'danger')
+    
+    return redirect(url_for('depto.list_equivalencias'))
+
+@depto_bp.route('/desasignar_evaluador/<int:solicitud_id>', methods=['POST'])
+@login_required
+@depto_required
+def desasignar_evaluador(solicitud_id):
+    """Unassign an evaluator from a solicitud"""
+    evaluador_service = EvaluadorService()
+    success, message = evaluador_service.unassign_evaluador_from_solicitud(solicitud_id)
+    
+    if success:
+        flash(message, 'success')
+    else:
+        flash(message, 'danger')
+    
+    return redirect(url_for('depto.list_equivalencias'))
 
 def limpiar_archivos_temporales():
     """Limpia los archivos temporales de la carpeta de uploads"""
