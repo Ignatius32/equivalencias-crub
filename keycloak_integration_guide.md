@@ -688,366 +688,112 @@ Assign these roles from `realm-management` to the service account:
 - `query-users`
 - `view-realm`
 
-## 7. Generic Error Handling and Fallbacks
+## 7. Error Handling and Fallbacks
 
-### 7.1 Graceful Degradation Pattern
+### 7.1 Graceful Degradation
 
-The system implements multiple fallback mechanisms (adapt for your use case):
+The system implements multiple fallback mechanisms:
 
 ```python
-# Generic fallback pattern for any service
-def get_all_users_of_role(self, role_name):
-    """Generic pattern: try Keycloak first, fall back to local DB"""
+# If Keycloak is unavailable, fall back to local authentication
+def get_all_evaluadores(self):
     if self.keycloak_enabled and self.keycloak_service:
         try:
-            return self.keycloak_service.get_users_by_role(role_name)
+            return self.keycloak_service.get_evaluadores()
         except Exception as e:
             print(f"Keycloak failed: {e}, falling back to local DB")
     
-    # Fallback query - customize for your User model and field names
-    return User.query.filter_by(role=role_name).all()
-
-# Generic assignment fallback
-def assign_with_fallback(self, item_id, user_id):
-    """Try assignment with error handling and rollback"""
-    try:
-        # Attempt assignment
-        success, message = self.assign_user_to_item(item_id, user_id)
-        
-        if not success and self.keycloak_enabled:
-            # If assignment failed, try syncing users and retry
-            print("Assignment failed, syncing users from Keycloak and retrying...")
-            self.sync_users_from_keycloak()
-            success, message = self.assign_user_to_item(item_id, user_id)
-        
-        return success, message
-    except Exception as e:
-        return False, f"Assignment failed with error: {str(e)}"
+    return Usuario.query.filter_by(rol='evaluador').all()
 ```
 
-### 7.2 Generic Configuration Validation
+### 7.2 Configuration Validation
 
 ```python
 def get_service_status(self):
-    """Generic service status check - adapt for your needs"""
+    """Get detailed service status information"""
     status = {
-        'configured': all([
-            self.server_url, 
-            self.realm, 
-            self.client_id, 
-            self.client_secret
-        ]),
+        'configured': all([self.server_url, self.realm, self.client_id, self.client_secret]),
         'available': False,
         'can_access_users': False,
         'error': None
     }
     
-    if not status['configured']:
-        status['error'] = 'Missing Keycloak configuration'
-        return status
-    
     # Test connectivity and permissions
-    try:
-        admin_token = self.get_admin_token()
-        if admin_token:
-            status['available'] = True
-            
-            # Test user access with your app's primary worker role
-            test_users = self.get_users_by_role('worker')  # Customize role name
-            status['can_access_users'] = True
-            status['user_count'] = len(test_users)
-        else:
-            status['error'] = 'Failed to get admin token'
-    except Exception as e:
-        status['error'] = str(e)
+    if status['configured']:
+        try:
+            admin_token = self.get_admin_token()
+            if admin_token:
+                status['available'] = True
+                evaluadores = self.get_users_by_role('evaluador')
+                status['can_access_users'] = True
+                status['evaluador_count'] = len(evaluadores)
+        except Exception as e:
+            status['error'] = str(e)
     
     return status
 ```
 
-## 8. Generic Security Considerations
+## 8. Security Considerations
 
-### 8.1 Token Management (Universal patterns)
-- Access tokens stored in session (customize session management for your framework)
+### 8.1 Token Management
+- Access tokens stored in Flask session
 - Refresh tokens used for token renewal
 - Automatic token validation before API calls
-- Token expiration handling
 
-```python
-# Generic token validation pattern
-def validate_and_refresh_token(self, access_token, refresh_token=None):
-    """Generic token validation with refresh capability"""
-    if self.validate_token(access_token):
-        return access_token
-    
-    if refresh_token:
-        try:
-            new_tokens = self.refresh_token(refresh_token)
-            if new_tokens:
-                return new_tokens['access_token']
-        except Exception as e:
-            print(f"Token refresh failed: {e}")
-    
-    return None
-```
-
-### 8.2 Role Security (Adapt decorators for your framework)
+### 8.2 Role Security
 - Role assignments managed in Keycloak only
 - Local role caching with periodic sync
 - Role-based route protection using decorators
 
-```python
-# Generic role-based decorator pattern
-def role_required(required_role):
-    """Generic decorator for role-based access control"""
-    def decorator(f):
-        @wraps(f)
-        def decorated_function(*args, **kwargs):
-            if not current_user.is_authenticated:
-                return redirect(url_for('auth.login'))
-            
-            # Define role hierarchy - customize for your app
-            role_hierarchy = {
-                'admin': 4,
-                'manager': 3, 
-                'worker': 2,
-                'viewer': 1
-            }
-            
-            user_level = role_hierarchy.get(current_user.role, 0)
-            required_level = role_hierarchy.get(required_role, 5)
-            
-            if user_level < required_level:
-                flash(f'Access denied. {required_role} role required.', 'danger')
-                return redirect(url_for('auth.login'))
-            
-            return f(*args, **kwargs)
-        return decorated_function
-    return decorator
-
-# Usage examples:
-@app.route('/admin/dashboard')
-@role_required('admin')
-def admin_dashboard():
-    pass
-
-@app.route('/manager/assignments')
-@role_required('manager')
-def manage_assignments():
-    pass
-```
-
-### 8.3 API Security (Universal best practices)
+### 8.3 API Security
 - Service account with minimal required permissions
-- Secure client secret management (use environment variables)
+- Secure client secret management
 - HTTPS required for production
-- Rate limiting on authentication endpoints
-- Session security configuration
 
-## 9. Generic Testing and Monitoring
+## 9. Testing and Monitoring
 
-### 9.1 Generic Test Script Pattern
-Create a test script for your application (adapt field names and role names):
+### 9.1 Test Script
+The included `test_keycloak.py` script validates:
+- Keycloak connectivity
+- Service account permissions
+- Evaluator synchronization
+- Role mapping
 
-```python
-#!/usr/bin/env python3
-"""Generic Keycloak integration test script"""
-import os
-import sys
-sys.path.append('.')
-
-def test_keycloak_connection():
-    """Test Keycloak connectivity and user sync"""
-    print("=== Testing Keycloak Integration ===")
-    
-    # Test configuration
-    config_vars = [
-        'KEYCLOAK_SERVER_URL',
-        'KEYCLOAK_REALM', 
-        'KEYCLOAK_CLIENT_ID',
-        'KEYCLOAK_CLIENT_SECRET',
-        'KEYCLOAK_REDIRECT_URI'
-    ]
-    
-    print("Configuration check:")
-    for var in config_vars:
-        value = os.getenv(var)
-        print(f"  {var}: {'✓ Set' if value else '✗ Missing'}")
-    
-    try:
-        # Initialize your services - adapt imports
-        keycloak_service = KeycloakService()
-        assignment_service = AssignmentService()
-        
-        # Test service status
-        print("\nService status:")
-        status = keycloak_service.get_service_status()
-        print(f"  Configured: {'✓' if status['configured'] else '✗'}")
-        print(f"  Available: {'✓' if status['available'] else '✗'}")
-        print(f"  Can access users: {'✓' if status['can_access_users'] else '✗'}")
-        
-        if status['error']:
-            print(f"  Error: {status['error']}")
-        
-        # Test admin token
-        print("\nTesting admin token...")
-        admin_token = keycloak_service.get_admin_token()
-        if admin_token:
-            print("✓ Admin token obtained")
-        else:
-            print("✗ Failed to get admin token")
-            return
-        
-        # Test user sync - customize role name
-        print(f"\nTesting user sync for role 'worker'...")
-        workers = keycloak_service.get_users_by_role('worker')
-        print(f"Found {len(workers)} workers in Keycloak")
-        
-        # Test assignment service
-        print("\nTesting assignment service...")
-        assignment_status = assignment_service.get_service_status()
-        print(f"  Workers found: {assignment_status.get('worker_count', 0)}")
-        
-    except Exception as e:
-        print(f"✗ Error: {str(e)}")
-        import traceback
-        traceback.print_exc()
-
-if __name__ == "__main__":
-    test_keycloak_connection()
-```
-
-### 9.2 Generic Monitoring Patterns
-- Service status endpoint for health checks
-- Sync operation logging and metrics
+### 9.2 Monitoring
+- Service status endpoint
+- Sync operation logging
 - Error tracking for authentication failures
-- User activity monitoring
 
-```python
-# Generic monitoring endpoint
-@app.route('/health/keycloak')
-def keycloak_health():
-    """Health check endpoint for Keycloak integration"""
-    keycloak_service = KeycloakService()
-    status = keycloak_service.get_service_status()
-    
-    return {
-        'status': 'healthy' if status['available'] else 'unhealthy',
-        'keycloak_configured': status['configured'],
-        'keycloak_available': status['available'],
-        'can_access_users': status['can_access_users'],
-        'error': status.get('error'),
-        'timestamp': datetime.now().isoformat()
-    }
-```
+## 10. Implementation Checklist for New Projects
 
-## 10. Generic Implementation Checklist
-
-To integrate this Keycloak system into any project:
+To integrate this Keycloak system into another project:
 
 ### 10.1 Backend Setup
-- [ ] Install required dependencies: `requests`, `python-keycloak` (or equivalent for your language)
+- [ ] Install required dependencies: `python-keycloak`, `requests`
 - [ ] Create `KeycloakService` class with OAuth2/OIDC methods
-- [ ] Create `AssignmentService` class for user/work item management
-- [ ] Add Keycloak fields to your User model (keycloak_id, is_keycloak_user, etc.)
+- [ ] Create `EvaluadorService` class for user management
+- [ ] Add Keycloak fields to User model
 - [ ] Implement authentication routes with callback handling
 - [ ] Add role-based decorators for route protection
-- [ ] Create user synchronization endpoints
 
 ### 10.2 Keycloak Configuration
-- [ ] Create new client in your Keycloak realm
+- [ ] Create new client in Keycloak realm
 - [ ] Configure client with service account enabled
-- [ ] Create required client roles (customize for your domain)
-- [ ] Assign service account permissions (view-users, view-clients, etc.)
-- [ ] Configure redirect URIs for your application
-- [ ] Test connection and permissions
+- [ ] Create required client roles
+- [ ] Assign service account permissions
+- [ ] Configure redirect URIs
 
 ### 10.3 Frontend Integration
 - [ ] Update login templates for Keycloak
-- [ ] Add user management interfaces
+- [ ] Add evaluator management interfaces
 - [ ] Implement assignment/unassignment forms
 - [ ] Add sync buttons and status indicators
-- [ ] Create workload visualization components
-- [ ] Add error handling and user feedback
 
-### 10.4 Database Schema
-- [ ] Add Keycloak integration fields to user table
-- [ ] Create work item/assignment table structure
-- [ ] Add indexes for performance (assigned_user_id, status, etc.)
-- [ ] Create migration scripts
-- [ ] Test database operations
-
-### 10.5 Testing
-- [ ] Test authentication flow (login/logout)
-- [ ] Verify role mapping and assignment
-- [ ] Test user synchronization
+### 10.4 Testing
+- [ ] Test authentication flow
+- [ ] Verify role mapping
+- [ ] Test evaluator synchronization
 - [ ] Validate assignment operations
-- [ ] Test fallback scenarios (Keycloak unavailable)
-- [ ] Performance testing with large user sets
-- [ ] Security testing (token validation, role escalation)
+- [ ] Test fallback scenarios
 
-### 10.6 Configuration Examples for Different Domains
-
-#### Project Management System
-```python
-# Role mapping for project management
-ROLE_MAPPING = {
-    'admin': 'admin',
-    'project-manager': 'manager', 
-    'team-member': 'worker',
-    'stakeholder': 'viewer'
-}
-
-# Work item model
-class Project(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(200), nullable=False)
-    status = db.Column(db.String(20), default='planned')
-    assigned_manager_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-```
-
-#### Task Assignment System
-```python
-# Role mapping for task system
-ROLE_MAPPING = {
-    'admin': 'admin',
-    'coordinator': 'manager',
-    'specialist': 'worker',
-    'observer': 'viewer'
-}
-
-# Work item model
-class Task(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(200), nullable=False)
-    status = db.Column(db.String(20), default='pending')
-    assigned_specialist_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-```
-
-#### Educational System
-```python
-# Role mapping for education
-ROLE_MAPPING = {
-    'admin': 'admin',
-    'instructor': 'manager',
-    'student': 'worker',  # In this context, students "work" on assignments
-    'auditor': 'viewer'
-}
-
-# Work item model  
-class Assignment(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(200), nullable=False)
-    status = db.Column(db.String(20), default='not_started')
-    assigned_student_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-```
-
-### 10.7 Deployment Considerations
-- [ ] Secure environment variable management
-- [ ] HTTPS configuration for production
-- [ ] Session security configuration
-- [ ] Rate limiting on auth endpoints
-- [ ] Backup and recovery procedures
-- [ ] Monitoring and alerting setup
-- [ ] Documentation for administrators
-
-This comprehensive, generic integration provides a robust, scalable solution for authentication and user assignment management that can be adapted to any domain requiring role-based access control and workload distribution.
+This comprehensive integration provides a robust, scalable solution for authentication and evaluator management that can be adapted to similar academic or administrative systems.

@@ -14,7 +14,7 @@ class KeycloakService:
         
         print(f"DEBUG: Keycloak config - server: {self.server_url}, realm: {self.realm}, client_id: {self.client_id}")
         
-        if not all([self.server_url, self.realm, self.client_id, self.client_secret, self.redirect_uri]):
+        if not all([self.server_url, self.realm, self.client_id, self.client_secret]):
             raise ValueError("Missing Keycloak configuration")
         
         # Build base URLs
@@ -394,3 +394,31 @@ class KeycloakService:
             status['error'] = f'Service connection failed: {str(e)}'
         
         return status
+
+    def authenticate_with_password(self, username, password):
+        """Authenticate user directly with username and password using Resource Owner Password Credentials Grant"""
+        data = {
+            'grant_type': 'password',
+            'client_id': self.client_id,
+            'client_secret': self.client_secret,
+            'username': username,
+            'password': password,
+            'scope': 'openid profile email'
+        }
+        
+        print(f"DEBUG: Direct auth data for user: {username}")
+        
+        try:
+            response = requests.post(self.token_url, data=data)
+            print(f"DEBUG: Direct auth response status: {response.status_code}")
+            
+            if response.status_code == 200:
+                token_data = response.json()
+                print(f"DEBUG: Direct auth successful for user: {username}")
+                return token_data
+            else:
+                print(f"Direct auth failed: {response.status_code} - {response.text}")
+                return None
+        except Exception as e:
+            print(f"Direct auth error: {str(e)}")
+            return None

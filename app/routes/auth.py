@@ -18,15 +18,8 @@ def login():
     
     if request.method == 'POST':
         if use_keycloak:
-            # Redirect to Keycloak for authentication
-            try:
-                from app.services.keycloak_service import KeycloakService
-                keycloak_service = KeycloakService()
-                auth_url = keycloak_service.get_auth_url()
-                return redirect(auth_url)
-            except Exception as e:
-                flash(f'Error de Keycloak: {str(e)}. Usando autenticación local.', 'warning')
-                return handle_local_login()
+            # Direct Keycloak authentication with username/password
+            return handle_keycloak_login()
         else:
             # Local authentication (existing logic)
             return handle_local_login()
@@ -138,6 +131,61 @@ def handle_local_login():
     
     flash('Usuario o contraseña incorrectos', 'danger')
     return redirect(url_for('auth.login'))
+
+def handle_keycloak_login():
+    """Handle direct Keycloak authentication with username/password"""
+    username = request.form.get('username')
+    password = request.form.get('password')
+    remember = 'remember' in request.form
+    
+    if not username or not password:
+        flash('Por favor ingrese usuario y contraseña', 'danger')
+        return redirect(url_for('auth.login'))
+    
+    try:
+        from app.services.keycloak_service import KeycloakService
+        keycloak_service = KeycloakService()
+        
+        # Authenticate directly with Keycloak
+        token = keycloak_service.authenticate_with_password(username, password)
+        if not token:
+            flash('Usuario o contraseña incorrectos', 'danger')
+            return redirect(url_for('auth.login'))
+        
+        # Get user info from Keycloak
+        user_info = keycloak_service.get_user_info(token)
+        if not user_info:
+            flash('Error al obtener información del usuario', 'danger')
+            return redirect(url_for('auth.login'))
+        
+        print(f"DEBUG: User info from Keycloak: {user_info}")
+        
+        # Map roles
+        app_role = keycloak_service.map_keycloak_roles_to_app_roles(user_info)
+        print(f"DEBUG: Mapped role: {app_role}")
+        
+        # Create or update user
+        user = Usuario.create_or_update_from_keycloak(
+            user_info, 
+            user_info.get('sub'), 
+            app_role
+        )
+        print(f"DEBUG: User created/updated: {user.username}, role: {user.rol}")
+        
+        # Store token in session
+        session['access_token'] = token['access_token']
+        session['refresh_token'] = token.get('refresh_token')
+        
+        # Login user
+        login_user(user, remember=remember)
+        flash(f'{user.nombre}, te damos la bienvenida al Sistema de solicitudes de equivalencias.', 'success')
+        
+        return redirect_to_dashboard(user)
+        
+    except Exception as e:
+        print(f"DEBUG: Keycloak authentication error: {str(e)}")
+        flash(f'Error de autenticación: {str(e)}', 'danger')
+        return redirect(url_for('auth.login'))
 
 def redirect_to_dashboard(user):
     """Redirect user to appropriate dashboard based on role"""

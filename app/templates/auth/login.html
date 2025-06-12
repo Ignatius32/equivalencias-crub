@@ -9,10 +9,21 @@
         <div class="card shadow">
             <div class="card-body">
                 <h4 class="card-title text-center mb-4">Sistema de Equivalencias CRUB</h4>
-                
-                {% if use_keycloak %}
-                <!-- Keycloak Login -->
+                  {% if use_keycloak %}
+                <!-- Keycloak Login with Username/Password -->
                 <form method="POST" action="{{ url_for('auth.login') }}">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Usuario CRUB</label>
+                        <input type="text" class="form-control" id="username" name="username" required autocomplete="username" placeholder="Tu usuario institucional">
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Contraseña</label>
+                        <input type="password" class="form-control" id="password" name="password" required autocomplete="current-password" placeholder="Tu contraseña institucional">
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="remember" name="remember">
+                        <label class="form-check-label" for="remember">Recordarme</label>
+                    </div>
                     <div class="d-grid gap-2 mb-3">
                         <button type="submit" class="btn btn-primary btn-lg">
                             <i class="fas fa-sign-in-alt"></i> Iniciar Sesión con CRUB
@@ -26,7 +37,7 @@
                         Utiliza tus credenciales institucionales de CRUB para acceder al sistema.
                     </small>
                     <div class="mt-3">
-                        <a href="https://huayca.crub.uncoma.edu.ar/auth/realms/CRUB/login-actions/reset-credentials" class="link-secondary">Olvidé contraseña</a>
+                        <a href="https://huayca.crub.uncoma.edu.ar/auth/realms/CRUB/login-actions/reset-credentials" target="_blank" class="link-secondary">¿Olvidaste tu contraseña?</a>
                     </div>
                 </div>
                 {% else %}
