@@ -35,7 +35,7 @@ def init_db():
         email="depto.estudiantes@crub.uncoma.edu.ar",
         nombre="Departamento",
         apellido="Estudiantes",
-        telefono="2944123456",
+        telefono="2944000001",
         rol="depto_estudiantes",
         is_keycloak_user=False
     )
@@ -48,7 +48,7 @@ def init_db():
         email="evaluador@crub.uncoma.edu.ar",
         nombre="María",
         apellido="López",
-        telefono="2944654321",
+        telefono="2944000002",
         rol="evaluador",
         legajo_evaluador="123456",
         departamento_academico="Ingeniería",
